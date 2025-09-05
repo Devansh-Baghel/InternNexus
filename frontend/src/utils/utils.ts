@@ -1,0 +1,93 @@
+// Mock user data
+export const mockUser = {
+  name: "Priya Sharma",
+  email: "priya.sharma@example.com",
+  education: "B.Tech Computer Science",
+  location: "Mumbai, Maharashtra",
+  skills: ["JavaScript", "React", "Node.js"],
+  interests: ["Technology", "Startups"],
+};
+
+// Mock internship data
+export const mockInternships = [
+  {
+    id: 1,
+    title: "Software Development Intern",
+    company: "Tech Innovations Pvt Ltd",
+    location: "Mumbai, Maharashtra",
+    duration: "3 months",
+    stipend: "₹15,000/month",
+    skills: ["JavaScript", "React", "Node.js"],
+    description:
+      "Work on cutting-edge web applications and gain hands-on experience in full-stack development.",
+    rating: 4.8,
+    applicants: 45,
+    logo: "🚀",
+    remote: false,
+    featured: true,
+  },
+  {
+    id: 2,
+    title: "Digital Marketing Intern",
+    company: "Creative Solutions",
+    location: "Pune, Maharashtra",
+    duration: "2 months",
+    stipend: "₹12,000/month",
+    skills: ["Social Media", "Content Writing", "Analytics"],
+    description:
+      "Learn digital marketing strategies and execute campaigns for real clients.",
+    rating: 4.6,
+    applicants: 32,
+    logo: "📊",
+    remote: true,
+    featured: false,
+  },
+  {
+    id: 3,
+    title: "UI/UX Design Intern",
+    company: "Design Studio",
+    location: "Bangalore, Karnataka",
+    duration: "4 months",
+    stipend: "₹18,000/month",
+    skills: ["Figma", "Adobe XD", "User Research"],
+    description:
+      "Create beautiful and functional user interfaces for mobile and web applications.",
+    rating: 4.9,
+    applicants: 28,
+    logo: "🎨",
+    remote: true,
+    featured: true,
+  },
+  {
+    id: 4,
+    title: "Data Analytics Intern",
+    company: "DataCorp Analytics",
+    location: "Hyderabad, Telangana",
+    duration: "3 months",
+    stipend: "₹16,000/month",
+    skills: ["Python", "SQL", "Excel"],
+    description:
+      "Analyze large datasets and create insights for business decision making.",
+    rating: 4.7,
+    applicants: 38,
+    logo: "📈",
+    remote: false,
+    featured: false,
+  },
+  {
+    id: 5,
+    title: "Content Writing Intern",
+    company: "Media House Inc",
+    location: "Delhi, NCR",
+    duration: "2 months",
+    stipend: "₹10,000/month",
+    skills: ["Writing", "SEO", "Research"],
+    description:
+      "Create engaging content for websites, blogs, and social media platforms.",
+    rating: 4.5,
+    applicants: 52,
+    logo: "✍️",
+    remote: true,
+    featured: false,
+  },
+];
