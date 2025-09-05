@@ -1,3 +1,4 @@
+// backend/src/models/user.model.js
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -17,38 +18,93 @@ const userSchema = mongoose.Schema(
       trim: true,
       index: true,
     },
-    transactionHistory: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Transaction",
-      },
-    ],
-    goals: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Goal",
-      },
-    ],
-    isPaidUser: {
-      type: Boolean,
-      default: false,
-    },
-    stripeSessionId: { type: String },
     password: {
       type: String,
       required: [true, "Password is required"],
     },
-    currentBalance: {
+    
+    // Profile Information
+    education: {
+      type: String,
+      trim: true,
+    },
+    field: {
+      type: String,
+      trim: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    bio: {
+      type: String,
+      maxlength: 500,
+    },
+    avatar: {
+      type: String, // Cloudinary URL
+    },
+    dateOfBirth: {
+      type: Date,
+    },
+    
+    // Skills and Interests
+    skills: [{
+      type: String,
+      trim: true,
+    }],
+    interests: [{
+      type: String,
+      trim: true,
+    }],
+    experience: {
+      type: String,
+      enum: ["none", "some", "internship", "part-time"],
+      default: "none",
+    },
+    
+    // Profile Stats
+    profileViews: {
       type: Number,
       default: 0,
     },
-    refershToken: {
-      type: String,
+    skillsEndorsed: {
+      type: Number,
+      default: 0,
     },
-    hasSetIncomeAndExpense: {
+    profileScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    
+    // Internship Related
+    applications: [{
+      type: Schema.Types.ObjectId,
+      ref: "Application",
+    }],
+    savedInternships: [{
+      type: Schema.Types.ObjectId,
+      ref: "Internship",
+    }],
+    completedApplications: {
+      type: Number,
+      default: 0,
+    },
+    
+    // Onboarding
+    isOnboardingComplete: {
       type: Boolean,
       default: false,
     },
+    onboardingStep: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 4,
+    },
+    
+    // Financial (from existing template)
     income: {
       type: Number,
       min: 0,
@@ -57,23 +113,73 @@ const userSchema = mongoose.Schema(
       type: Number,
       min: 0,
     },
-    avatar: {
-      type: String,
-    },
-    bio: {
-      type: String,
-    },
-    dateOfBirth: {
-      type: Date,
+    currentBalance: {
+      type: Number,
+      default: 0,
     },
     currency: {
       type: String,
-      default: "$",
+      default: "₹",
       enum: ["$", "€", "¥", "₹", "A$", "C$"],
+    },
+    hasSetIncomeAndExpense: {
+      type: Boolean,
+      default: false,
+    },
+    
+    // Premium Features
+    isPaidUser: {
+      type: Boolean,
+      default: false,
+    },
+    stripeSessionId: { 
+      type: String 
+    },
+    
+    // Authentication
+    refreshToken: {
+      type: String,
+    },
+    
+    // Preferences
+    preferences: {
+      emailNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      pushNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      jobAlerts: {
+        type: Boolean,
+        default: true,
+      },
+      remoteOnly: {
+        type: Boolean,
+        default: false,
+      },
     },
   },
   { timestamps: true }
 );
+
+// Middleware to calculate profile score
+userSchema.pre("save", function (next) {
+  let score = 0;
+  
+  if (this.fullName) score += 10;
+  if (this.email) score += 10;
+  if (this.education) score += 15;
+  if (this.location) score += 10;
+  if (this.bio) score += 10;
+  if (this.avatar) score += 10;
+  if (this.skills && this.skills.length > 0) score += 20;
+  if (this.interests && this.interests.length > 0) score += 15;
+  
+  this.profileScore = score;
+  next();
+});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

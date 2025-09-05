@@ -1,3 +1,4 @@
+// backend/src/controllers/user.controller.js
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
@@ -26,7 +27,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
 export const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, password } = req.body;
 
-  if (!fullName) throw new ApiError(400, "Fullname is required");
+  if (!fullName) throw new ApiError(400, "Full name is required");
   if (!password) throw new ApiError(400, "Password is required");
   if (!email) throw new ApiError(400, "Email is required");
 
@@ -48,7 +49,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "User registered sucessfully"));
+    .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
 
 export const loginUser = asyncHandler(async (req, res) => {
@@ -58,11 +59,9 @@ export const loginUser = asyncHandler(async (req, res) => {
   if (!password) throw new ApiError(400, "Password required");
 
   const user = await User.findOne({ email });
-
   if (!user) throw new ApiError(404, "User not found");
 
   const isPasswordValid = await user.isPasswordCorrect(password);
-
   if (!isPasswordValid) throw new ApiError(401, "Invalid Password");
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
@@ -100,8 +99,8 @@ export const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1,
       },
     },
     {
@@ -121,6 +120,200 @@ export const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User logged out"));
 });
 
+export const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: req.user }, "User fetched successfully")
+    );
+});
+
+// Onboarding Controllers
+export const updateOnboardingStep = asyncHandler(async (req, res) => {
+  const { step, education, field, skills, interests, location, experience } = req.body;
+  const user = req.user;
+
+  const updateData = { onboardingStep: step };
+
+  // Update based on step
+  switch (step) {
+    case 1:
+      if (education) updateData.education = education;
+      if (field) updateData.field = field;
+      break;
+    case 2:
+      if (skills) updateData.skills = skills;
+      break;
+    case 3:
+      if (interests) updateData.interests = interests;
+      break;
+    case 4:
+      if (location) updateData.location = location;
+      if (experience) updateData.experience = experience;
+      updateData.isOnboardingComplete = true;
+      break;
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    updateData,
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: updatedUser },
+        `Onboarding step ${step} updated successfully`
+      )
+    );
+});
+
+export const completeOnboarding = asyncHandler(async (req, res) => {
+  const { education, field, skills, interests, location, experience } = req.body;
+  const user = req.user;
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    {
+      education,
+      field,
+      skills,
+      interests,
+      location,
+      experience,
+      isOnboardingComplete: true,
+      onboardingStep: 4,
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) throw new ApiError(404, "User not found");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: updatedUser }, "Onboarding completed successfully")
+    );
+});
+
+// Profile Management
+export const updateProfile = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { fullName, bio, education, field, location, skills, interests } = req.body;
+
+  const updateFields = {};
+  if (fullName) updateFields.fullName = fullName;
+  if (bio) updateFields.bio = bio;
+  if (education) updateFields.education = education;
+  if (field) updateFields.field = field;
+  if (location) updateFields.location = location;
+  if (skills) updateFields.skills = skills;
+  if (interests) updateFields.interests = interests;
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id, 
+    updateFields, 
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) throw new ApiError(404, "User doesn't exist");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: updatedUser },
+        "Profile updated successfully"
+      )
+    );
+});
+
+export const uploadAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+  const user = req.user;
+
+  if (!avatarLocalPath) throw new ApiError(400, "Avatar file is required");
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar) throw new ApiError(400, "Error uploading avatar");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { avatar: avatar.url },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser)
+    throw new ApiError(500, "Something went wrong uploading avatar");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: updatedUser }, "Avatar uploaded successfully")
+    );
+});
+
+export const updatePreferences = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { preferences } = req.body;
+
+  if (!preferences) throw new ApiError(400, "Preferences are required");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { preferences },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: updatedUser },
+        "Preferences updated successfully"
+      )
+    );
+});
+
+// Profile Stats
+export const incrementProfileViews = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $inc: { profileViews: 1 } },
+    { new: true }
+  ).select("profileViews");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { profileViews: user.profileViews }, "Profile view incremented")
+    );
+});
+
+export const endorseSkill = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $inc: { skillsEndorsed: 1 } },
+    { new: true }
+  ).select("skillsEndorsed");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { skillsEndorsed: user.skillsEndorsed }, "Skill endorsed")
+    );
+});
+
+// Existing controllers from template
 export const addIncomeAndExpense = asyncHandler(async (req, res) => {
   const { income, expense } = req.body;
   const user = req.user;
@@ -154,9 +347,7 @@ export const addIncomeAndExpense = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(
       200,
-      {
-        user: updatedUser,
-      },
+      { user: updatedUser },
       "Income and expense added successfully"
     )
   );
@@ -173,7 +364,6 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   );
 
   const user = await User.findById(decodedToken?._id);
-
   if (!user) throw new ApiError(401, "Invalid refresh token");
 
   if (incomingRefreshToken !== user?.refreshToken)
@@ -195,133 +385,9 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        {
-          accessToken,
-          refreshToken,
-        },
+        { accessToken, refreshToken },
         "Access token refreshed"
       )
-    );
-});
-
-export const initialDeposit = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { depositAmount } = req.body;
-
-  if (!depositAmount) throw new ApiError(400, "Deposit amount is required");
-  if (isNaN(depositAmount))
-    throw new ApiError(400, "Deposit amount must be a number");
-  if (depositAmount < 1)
-    throw new ApiError(400, "Deposit amount must be at least 1");
-  if (user.currentBalance !== 0)
-    throw new ApiError(400, "User already has money in their account");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    {
-      currentBalance: depositAmount,
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user: updatedUser }, "Initial deposit added"));
-});
-
-export const updateAccountBalance = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { newAmount } = req.body;
-
-  if (!newAmount) throw new ApiError(400, "New amount is required");
-  if (isNaN(newAmount)) throw new ApiError(400, "New amount must be a number");
-  if (newAmount < 1) throw new ApiError(400, "New amount must be at least 1");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    {
-      currentBalance: newAmount,
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: updatedUser }, "Updated account balance")
-    );
-});
-
-export const updateDate = asyncHandler(async (req, res) => {
-  const { date } = req.body;
-  const user = req.user;
-
-  if (!date) throw new ApiError(400, "Date is required");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    { dateOfBirth: date },
-    { new: true }
-  ).select("-password -refreshToken");
-  if (!updatedUser) throw new ApiError(404, "User not found");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user: updatedUser }, "Date of birth added"));
-});
-
-export const updateUserDetails = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { name, bio } = req.body;
-
-  const updateFields = {};
-  if (name) updateFields.fullName = name;
-  if (bio) updateFields.bio = bio;
-
-  const updatedUser = await User.findByIdAndUpdate(user._id, updateFields, {
-    new: true,
-  }).select("-password -refreshToken");
-
-  if (!updatedUser) throw new ApiError(404, "User doesn't exist");
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { user: updatedUser },
-        "Updated user fields successfully"
-      )
-    );
-});
-
-export const uploadAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file.path;
-  const user = req.user;
-
-  if (!avatarLocalPath) throw new ApiError(400, "Avatar file is required");
-
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-  if (!avatar) throw new ApiError(400, "Avatar file is required");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    { avatar: avatar.url },
-    { new: true }
-  ).select("-password -refreshToken");
-
-  if (!updatedUser)
-    throw new ApiError(500, "Something went wrong uploading avatar");
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: updatedUser }, "Avatar uploaded sucessfully")
     );
 });
 
@@ -344,29 +410,4 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully"));
-});
-
-export const updateCurrency = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { newCurrency } = req.body;
-
-  if (!newCurrency) throw new ApiError(400, "New currency is required");
-
-  if (!["$", "€", "¥", "₹", "A$", "C$"].includes(newCurrency))
-    throw new ApiError(400, "Currency is not supported");
-
-  user.currency = newCurrency;
-  await user.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user }, "Currency updated successfully"));
-});
-
-export const getCurrentUser = asyncHandler(async (req, res) => {
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: req.user }, "User fetched successfully")
-    );
 });
