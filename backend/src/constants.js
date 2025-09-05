@@ -1,2 +1,2 @@
-export const DB_NAME = "expense-tracker";
-export const PORT = process.env.PORT || 3000;
+export const DB_NAME = "intern-nexus";
+export const PORT = process.env.PORT || 3001;

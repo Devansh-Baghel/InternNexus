@@ -1,6 +1,7 @@
 Directory structure:
 └── InternNexus/
     ├── README.md
+    ├── problem_statement.txt
     ├── backend/
     │   ├── package.json
     │   ├── public/
@@ -44,7 +45,10 @@ Directory structure:
             ├── routeTree.gen.ts
             ├── styles.css
             ├── components/
+            │   ├── CountUp.tsx
             │   └── Header.tsx
+            ├── contexts/
+            │   └── AuthContext.tsx
             ├── lib/
             │   └── utils.ts
             ├── routes/
@@ -59,12 +63,59 @@ Directory structure:
             │   ├── register.tsx
             │   └── sink.tsx
             └── utils/
+                ├── api.ts
                 └── utils.ts
 
 ================================================
 FILE: README.md
 ================================================
 # InternNexus
+
+
+
+================================================
+FILE: problem_statement.txt
+================================================
+Problem Statement ID	
+25034
+Problem Statement Title	
+Al-Based Internship Recommendation Engine for PM Internship Scheme
+Description	
+Background
+
+The PM Internship Scheme receives applications from youth across India, including rural areas, tribal districts, urban slums, and remote colleges. Many of these candidates are first-generation learners with limited digital exposure and no prior internship experience. With hundreds of internships listed on the portal, it becomes difficult for such candidates to identify which ones match their skills, interests, or aspirations. This leads to misaligned applications and missed opportunities.
+
+Description
+
+The problem seeks to build a simple, lightweight AI-based recommendation engine that suggests the most relevant internships to each candidate based on their profile, academic background, interests, and location preferences. The system should be user-friendly, mobile-compatible, and work well even for users with low digital literacy. It should offer 3-5 personalized suggestions, instead of a long list, and help candidates make informed choices. The tool must be simple enough to be integrated with the existing PM Internship Scheme portal and must avoid complex or resource-intensive deployment.
+
+Expected Solution
+
+A functional prototype that:
+• Captures basic candidate inputs (education, skills, sector interests, location)
+• Uses a rule-based or ML-light model to suggest 3-5 top internships
+• Has a simple, intuitive UI with minimal text and visual cues
+• Can be accessed on mobile devices and adapted to regional language use
+• Outputs recommendations in a clear, user-friendly format (e.g., cards or simple list)
+Organization	Ministry of Corporate Affairs
+Department	Ministry of Corporate Affairs (MoCA)
+Category	Software
+Theme	Smart Education
+
+Frontend: React and Tailwindcss, js
+Backend: Nodejs, MongoDB, js
+AI integration: Gemini 2.5 flash
+
+Project Name: InternNexus
+
+
+How will our solution work?
+
+1. User creates an account, login with google, etc
+2. User enters basic details (education, skills, sector interests, location)
+3. Once onboarding is complete, our backend will send 1 request to gemini api containing three things (1. Full user profile, 2. Full dataset, 3. Prompt for the ai to select top 3-5 jobs based on the user’s profile)
+4. These 3-5 top jobs get saved in our database for that particular user.
+5. Display these jobs on the frontend in /dashboard route.
 
 
 
@@ -121,12 +172,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      process.env.CORS_ORIGIN,
-      "http://localhost:5173",
-      "https://spendsync.baghel.dev",
-      "tauri://localhost",
-    ],
+    origin: [process.env.CORS_ORIGIN, "http://localhost:3000"],
     credentials: true,
   })
 );
@@ -138,20 +184,8 @@ app.use(cookieParser());
 
 // Routes
 import userRouter from "./routes/user.routes.js";
-import goalRouter from "./routes/goal.routes.js";
-import feedbackRouter from "./routes/feedback.routes.js";
-import transactionRouter from "./routes/transaction.routes.js";
-import demoRouter from "./routes/demo.routes.js";
-import payRouter from "./routes/payment.routes.js";
-import statsRouter from "./routes/stats.routes.js";
 
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/goals", goalRouter);
-app.use("/api/v1/feedback", feedbackRouter);
-app.use("/api/v1/transaction", transactionRouter);
-app.use("/api/v1/demo", demoRouter);
-app.use("/api/v1/pay", payRouter);
-app.use("/api/v1/stats", statsRouter);
 
 export default app;
 
@@ -160,8 +194,8 @@ export default app;
 ================================================
 FILE: backend/src/constants.js
 ================================================
-export const DB_NAME = "expense-tracker";
-export const PORT = process.env.PORT || 3000;
+export const DB_NAME = "intern-nexus";
+export const PORT = process.env.PORT || 3001;
 
 
 
@@ -192,6 +226,7 @@ connectDB()
 ================================================
 FILE: backend/src/controllers/user.controller.js
 ================================================
+// backend/src/controllers/user.controller.js
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
@@ -220,7 +255,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
 export const registerUser = asyncHandler(async (req, res) => {
   const { fullName, email, password } = req.body;
 
-  if (!fullName) throw new ApiError(400, "Fullname is required");
+  if (!fullName) throw new ApiError(400, "Full name is required");
   if (!password) throw new ApiError(400, "Password is required");
   if (!email) throw new ApiError(400, "Email is required");
 
@@ -242,7 +277,7 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "User registered sucessfully"));
+    .json(new ApiResponse(200, createdUser, "User registered successfully"));
 });
 
 export const loginUser = asyncHandler(async (req, res) => {
@@ -252,11 +287,9 @@ export const loginUser = asyncHandler(async (req, res) => {
   if (!password) throw new ApiError(400, "Password required");
 
   const user = await User.findOne({ email });
-
   if (!user) throw new ApiError(404, "User not found");
 
   const isPasswordValid = await user.isPasswordCorrect(password);
-
   if (!isPasswordValid) throw new ApiError(401, "Invalid Password");
 
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
@@ -294,8 +327,8 @@ export const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1,
       },
     },
     {
@@ -315,6 +348,200 @@ export const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User logged out"));
 });
 
+export const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: req.user }, "User fetched successfully")
+    );
+});
+
+// Onboarding Controllers
+export const updateOnboardingStep = asyncHandler(async (req, res) => {
+  const { step, education, field, skills, interests, location, experience } = req.body;
+  const user = req.user;
+
+  const updateData = { onboardingStep: step };
+
+  // Update based on step
+  switch (step) {
+    case 1:
+      if (education) updateData.education = education;
+      if (field) updateData.field = field;
+      break;
+    case 2:
+      if (skills) updateData.skills = skills;
+      break;
+    case 3:
+      if (interests) updateData.interests = interests;
+      break;
+    case 4:
+      if (location) updateData.location = location;
+      if (experience) updateData.experience = experience;
+      updateData.isOnboardingComplete = true;
+      break;
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    updateData,
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: updatedUser },
+        `Onboarding step ${step} updated successfully`
+      )
+    );
+});
+
+export const completeOnboarding = asyncHandler(async (req, res) => {
+  const { education, field, skills, interests, location, experience } = req.body;
+  const user = req.user;
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    {
+      education,
+      field,
+      skills,
+      interests,
+      location,
+      experience,
+      isOnboardingComplete: true,
+      onboardingStep: 4,
+    },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) throw new ApiError(404, "User not found");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: updatedUser }, "Onboarding completed successfully")
+    );
+});
+
+// Profile Management
+export const updateProfile = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { fullName, bio, education, field, location, skills, interests } = req.body;
+
+  const updateFields = {};
+  if (fullName) updateFields.fullName = fullName;
+  if (bio) updateFields.bio = bio;
+  if (education) updateFields.education = education;
+  if (field) updateFields.field = field;
+  if (location) updateFields.location = location;
+  if (skills) updateFields.skills = skills;
+  if (interests) updateFields.interests = interests;
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id, 
+    updateFields, 
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) throw new ApiError(404, "User doesn't exist");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: updatedUser },
+        "Profile updated successfully"
+      )
+    );
+});
+
+export const uploadAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+  const user = req.user;
+
+  if (!avatarLocalPath) throw new ApiError(400, "Avatar file is required");
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar) throw new ApiError(400, "Error uploading avatar");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { avatar: avatar.url },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser)
+    throw new ApiError(500, "Something went wrong uploading avatar");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { user: updatedUser }, "Avatar uploaded successfully")
+    );
+});
+
+export const updatePreferences = asyncHandler(async (req, res) => {
+  const user = req.user;
+  const { preferences } = req.body;
+
+  if (!preferences) throw new ApiError(400, "Preferences are required");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    user._id,
+    { preferences },
+    { new: true }
+  ).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { user: updatedUser },
+        "Preferences updated successfully"
+      )
+    );
+});
+
+// Profile Stats
+export const incrementProfileViews = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $inc: { profileViews: 1 } },
+    { new: true }
+  ).select("profileViews");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { profileViews: user.profileViews }, "Profile view incremented")
+    );
+});
+
+export const endorseSkill = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $inc: { skillsEndorsed: 1 } },
+    { new: true }
+  ).select("skillsEndorsed");
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, { skillsEndorsed: user.skillsEndorsed }, "Skill endorsed")
+    );
+});
+
+// Existing controllers from template
 export const addIncomeAndExpense = asyncHandler(async (req, res) => {
   const { income, expense } = req.body;
   const user = req.user;
@@ -348,9 +575,7 @@ export const addIncomeAndExpense = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(
       200,
-      {
-        user: updatedUser,
-      },
+      { user: updatedUser },
       "Income and expense added successfully"
     )
   );
@@ -367,7 +592,6 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
   );
 
   const user = await User.findById(decodedToken?._id);
-
   if (!user) throw new ApiError(401, "Invalid refresh token");
 
   if (incomingRefreshToken !== user?.refreshToken)
@@ -389,133 +613,9 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        {
-          accessToken,
-          refreshToken,
-        },
+        { accessToken, refreshToken },
         "Access token refreshed"
       )
-    );
-});
-
-export const initialDeposit = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { depositAmount } = req.body;
-
-  if (!depositAmount) throw new ApiError(400, "Deposit amount is required");
-  if (isNaN(depositAmount))
-    throw new ApiError(400, "Deposit amount must be a number");
-  if (depositAmount < 1)
-    throw new ApiError(400, "Deposit amount must be at least 1");
-  if (user.currentBalance !== 0)
-    throw new ApiError(400, "User already has money in their account");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    {
-      currentBalance: depositAmount,
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user: updatedUser }, "Initial deposit added"));
-});
-
-export const updateAccountBalance = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { newAmount } = req.body;
-
-  if (!newAmount) throw new ApiError(400, "New amount is required");
-  if (isNaN(newAmount)) throw new ApiError(400, "New amount must be a number");
-  if (newAmount < 1) throw new ApiError(400, "New amount must be at least 1");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    {
-      currentBalance: newAmount,
-    },
-    {
-      new: true,
-    }
-  ).select("-password -refreshToken");
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: updatedUser }, "Updated account balance")
-    );
-});
-
-export const updateDate = asyncHandler(async (req, res) => {
-  const { date } = req.body;
-  const user = req.user;
-
-  if (!date) throw new ApiError(400, "Date is required");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    { dateOfBirth: date },
-    { new: true }
-  ).select("-password -refreshToken");
-  if (!updatedUser) throw new ApiError(404, "User not found");
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user: updatedUser }, "Date of birth added"));
-});
-
-export const updateUserDetails = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { name, bio } = req.body;
-
-  const updateFields = {};
-  if (name) updateFields.fullName = name;
-  if (bio) updateFields.bio = bio;
-
-  const updatedUser = await User.findByIdAndUpdate(user._id, updateFields, {
-    new: true,
-  }).select("-password -refreshToken");
-
-  if (!updatedUser) throw new ApiError(404, "User doesn't exist");
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        { user: updatedUser },
-        "Updated user fields successfully"
-      )
-    );
-});
-
-export const uploadAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file.path;
-  const user = req.user;
-
-  if (!avatarLocalPath) throw new ApiError(400, "Avatar file is required");
-
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-
-  if (!avatar) throw new ApiError(400, "Avatar file is required");
-
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    { avatar: avatar.url },
-    { new: true }
-  ).select("-password -refreshToken");
-
-  if (!updatedUser)
-    throw new ApiError(500, "Something went wrong uploading avatar");
-
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: updatedUser }, "Avatar uploaded sucessfully")
     );
 });
 
@@ -538,31 +638,6 @@ export const changeCurrentPassword = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Password changed successfully"));
-});
-
-export const updateCurrency = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const { newCurrency } = req.body;
-
-  if (!newCurrency) throw new ApiError(400, "New currency is required");
-
-  if (!["$", "€", "¥", "₹", "A$", "C$"].includes(newCurrency))
-    throw new ApiError(400, "Currency is not supported");
-
-  user.currency = newCurrency;
-  await user.save();
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, { user }, "Currency updated successfully"));
-});
-
-export const getCurrentUser = asyncHandler(async (req, res) => {
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, { user: req.user }, "User fetched successfully")
-    );
 });
 
 
@@ -648,6 +723,7 @@ export const upload = multer({ storage });
 ================================================
 FILE: backend/src/models/user.model.js
 ================================================
+// backend/src/models/user.model.js
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -667,38 +743,93 @@ const userSchema = mongoose.Schema(
       trim: true,
       index: true,
     },
-    transactionHistory: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Transaction",
-      },
-    ],
-    goals: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Goal",
-      },
-    ],
-    isPaidUser: {
-      type: Boolean,
-      default: false,
-    },
-    stripeSessionId: { type: String },
     password: {
       type: String,
       required: [true, "Password is required"],
     },
-    currentBalance: {
+    
+    // Profile Information
+    education: {
+      type: String,
+      trim: true,
+    },
+    field: {
+      type: String,
+      trim: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    bio: {
+      type: String,
+      maxlength: 500,
+    },
+    avatar: {
+      type: String, // Cloudinary URL
+    },
+    dateOfBirth: {
+      type: Date,
+    },
+    
+    // Skills and Interests
+    skills: [{
+      type: String,
+      trim: true,
+    }],
+    interests: [{
+      type: String,
+      trim: true,
+    }],
+    experience: {
+      type: String,
+      enum: ["none", "some", "internship", "part-time"],
+      default: "none",
+    },
+    
+    // Profile Stats
+    profileViews: {
       type: Number,
       default: 0,
     },
-    refershToken: {
-      type: String,
+    skillsEndorsed: {
+      type: Number,
+      default: 0,
     },
-    hasSetIncomeAndExpense: {
+    profileScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    
+    // Internship Related
+    applications: [{
+      type: Schema.Types.ObjectId,
+      ref: "Application",
+    }],
+    savedInternships: [{
+      type: Schema.Types.ObjectId,
+      ref: "Internship",
+    }],
+    completedApplications: {
+      type: Number,
+      default: 0,
+    },
+    
+    // Onboarding
+    isOnboardingComplete: {
       type: Boolean,
       default: false,
     },
+    onboardingStep: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 4,
+    },
+    
+    // Financial (from existing template)
     income: {
       type: Number,
       min: 0,
@@ -707,23 +838,73 @@ const userSchema = mongoose.Schema(
       type: Number,
       min: 0,
     },
-    avatar: {
-      type: String,
-    },
-    bio: {
-      type: String,
-    },
-    dateOfBirth: {
-      type: Date,
+    currentBalance: {
+      type: Number,
+      default: 0,
     },
     currency: {
       type: String,
-      default: "$",
+      default: "₹",
       enum: ["$", "€", "¥", "₹", "A$", "C$"],
+    },
+    hasSetIncomeAndExpense: {
+      type: Boolean,
+      default: false,
+    },
+    
+    // Premium Features
+    isPaidUser: {
+      type: Boolean,
+      default: false,
+    },
+    stripeSessionId: { 
+      type: String 
+    },
+    
+    // Authentication
+    refreshToken: {
+      type: String,
+    },
+    
+    // Preferences
+    preferences: {
+      emailNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      pushNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      jobAlerts: {
+        type: Boolean,
+        default: true,
+      },
+      remoteOnly: {
+        type: Boolean,
+        default: false,
+      },
     },
   },
   { timestamps: true }
 );
+
+// Middleware to calculate profile score
+userSchema.pre("save", function (next) {
+  let score = 0;
+  
+  if (this.fullName) score += 10;
+  if (this.email) score += 10;
+  if (this.education) score += 15;
+  if (this.location) score += 10;
+  if (this.bio) score += 10;
+  if (this.avatar) score += 10;
+  if (this.skills && this.skills.length > 0) score += 20;
+  if (this.interests && this.interests.length > 0) score += 15;
+  
+  this.profileScore = score;
+  next();
+});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
@@ -768,45 +949,56 @@ export const User = mongoose.model("User", userSchema);
 ================================================
 FILE: backend/src/routes/user.routes.js
 ================================================
+// backend/src/routes/user.routes.js
 import { Router } from "express";
 import {
   registerUser,
   loginUser,
   logoutUser,
+  getCurrentUser,
+  updateOnboardingStep,
+  completeOnboarding,
+  updateProfile,
+  uploadAvatar,
+  updatePreferences,
+  incrementProfileViews,
+  endorseSkill,
   addIncomeAndExpense,
   refreshAccessToken,
-  initialDeposit,
-  updateAccountBalance,
-  updateDate,
-  updateUserDetails,
-  uploadAvatar,
   changeCurrentPassword,
-  updateCurrency,
-  getCurrentUser,
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
+// Public routes
 router.route("/register").post(registerUser);
-
 router.route("/login").post(loginUser);
+router.route("/refresh-access-token").post(refreshAccessToken);
 
-// secured routes
+// Protected routes
 router.route("/logout").post(verifyJWT, logoutUser);
-router.route("/add-income-and-expense").post(verifyJWT, addIncomeAndExpense);
-router.route("/refresh-access-token").post(verifyJWT, refreshAccessToken);
-router.route("/initial-deposit").post(verifyJWT, initialDeposit);
-router.route("/update-account-balance").post(verifyJWT, updateAccountBalance);
-router.route("/update-date").post(verifyJWT, updateDate);
-router.route("/update-details").post(verifyJWT, updateUserDetails);
-router
-  .route("/upload-avatar")
-  .post(verifyJWT, upload.single("avatar"), uploadAvatar);
-router.route("/update-password").post(verifyJWT, changeCurrentPassword);
-router.route("/update-currency").post(verifyJWT, updateCurrency);
-router.route("/get-current-user").get(verifyJWT, getCurrentUser);
+router.route("/current-user").get(verifyJWT, getCurrentUser);
+
+// Onboarding routes
+router.route("/onboarding/step").patch(verifyJWT, updateOnboardingStep);
+router.route("/onboarding/complete").patch(verifyJWT, completeOnboarding);
+
+// Profile management
+router.route("/profile").patch(verifyJWT, updateProfile);
+router.route("/avatar").patch(verifyJWT, upload.single("avatar"), uploadAvatar);
+router.route("/preferences").patch(verifyJWT, updatePreferences);
+
+// Profile stats
+router.route("/profile-views/:userId").patch(incrementProfileViews);
+router.route("/endorse-skill/:userId").patch(verifyJWT, endorseSkill);
+
+// Financial (from existing template)
+router.route("/income-expense").post(verifyJWT, addIncomeAndExpense);
+
+// Security
+router.route("/change-password").patch(verifyJWT, changeCurrentPassword);
 
 export default router;
 
@@ -1286,6 +1478,7 @@ FILE: frontend/package.json
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.476.0",
+    "motion": "^12.23.12",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.0.2",
@@ -1445,9 +1638,11 @@ Disallow:
 ================================================
 FILE: frontend/src/main.tsx
 ================================================
+// frontend/src/main.tsx
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -1478,14 +1673,13 @@ if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </StrictMode>,
   )
 }
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals()
 
 
@@ -1891,6 +2085,120 @@ code {
 
 
 ================================================
+FILE: frontend/src/components/CountUp.tsx
+================================================
+import { useEffect, useRef } from 'react';
+import { useInView, useMotionValue, useSpring } from 'motion/react';
+
+interface CountUpProps {
+  to: number;
+  from?: number;
+  direction?: 'up' | 'down';
+  delay?: number;
+  duration?: number;
+  className?: string;
+  startWhen?: boolean;
+  separator?: string;
+  onStart?: () => void;
+  onEnd?: () => void;
+}
+
+export default function CountUp({
+  to,
+  from = 0,
+  direction = 'up',
+  delay = 0,
+  duration = 2,
+  className = '',
+  startWhen = true,
+  separator = '',
+  onStart,
+  onEnd
+}: CountUpProps) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const motionValue = useMotionValue(direction === 'down' ? to : from);
+
+  const damping = 20 + 40 * (1 / duration);
+  const stiffness = 100 * (1 / duration);
+
+  const springValue = useSpring(motionValue, {
+    damping,
+    stiffness
+  });
+
+  const isInView = useInView(ref, { once: true, margin: '0px' });
+
+  const getDecimalPlaces = (num: number): number => {
+    const str = num.toString();
+    if (str.includes('.')) {
+      const decimals = str.split('.')[1];
+      if (parseInt(decimals) !== 0) {
+        return decimals.length;
+      }
+    }
+    return 0;
+  };
+
+  const maxDecimals = Math.max(getDecimalPlaces(from), getDecimalPlaces(to));
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.textContent = String(direction === 'down' ? to : from);
+    }
+  }, [from, to, direction]);
+
+  useEffect(() => {
+    if (isInView && startWhen) {
+      if (typeof onStart === 'function') {
+        onStart();
+      }
+
+      const timeoutId = setTimeout(() => {
+        motionValue.set(direction === 'down' ? from : to);
+      }, delay * 1000);
+
+      const durationTimeoutId = setTimeout(
+        () => {
+          if (typeof onEnd === 'function') {
+            onEnd();
+          }
+        },
+        delay * 1000 + duration * 1000
+      );
+
+      return () => {
+        clearTimeout(timeoutId);
+        clearTimeout(durationTimeoutId);
+      };
+    }
+  }, [isInView, startWhen, motionValue, direction, from, to, delay, onStart, onEnd, duration]);
+
+  useEffect(() => {
+    const unsubscribe = springValue.on('change', latest => {
+      if (ref.current) {
+        const hasDecimals = maxDecimals > 0;
+
+        const options: Intl.NumberFormatOptions = {
+          useGrouping: !!separator,
+          minimumFractionDigits: hasDecimals ? maxDecimals : 0,
+          maximumFractionDigits: hasDecimals ? maxDecimals : 0
+        };
+
+        const formattedNumber = Intl.NumberFormat('en-US', options).format(latest);
+
+        ref.current.textContent = separator ? formattedNumber.replace(/,/g, separator) : formattedNumber;
+      }
+    });
+
+    return () => unsubscribe();
+  }, [springValue, separator, maxDecimals]);
+
+  return <span className={className} ref={ref} />;
+}
+
+
+
+================================================
 FILE: frontend/src/components/Header.tsx
 ================================================
 import { Link } from '@tanstack/react-router'
@@ -1906,6 +2214,135 @@ export default function Header() {
     </header>
   )
 }
+
+
+
+================================================
+FILE: frontend/src/contexts/AuthContext.tsx
+================================================
+// frontend/src/contexts/AuthContext.tsx
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { apiService, type User } from '../utils/api';
+
+interface AuthContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+  isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Initialize auth state on app load
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          const response = await apiService.getCurrentUser();
+          setUser(response.data.user);
+        }
+      } catch (error) {
+        // Token might be expired, clear it
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await apiService.login({ email, password });
+      const { user: userData, accessToken, refreshToken } = response.data;
+      
+      // Store tokens
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      
+      setUser(userData);
+    } catch (error: any) {
+      setError(error.message || 'Login failed');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (fullName: string, email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await apiService.register({ fullName, email, password });
+      // Registration successful, but user needs to login
+      setError(null);
+    } catch (error: any) {
+      setError(error.message || 'Registration failed');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await apiService.logout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
+      // Clear local state regardless of API call success
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
+    }
+  };
+
+  const clearError = () => setError(null);
+
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    isLoading,
+    error,
+    clearError,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
 
 
 
@@ -2370,6 +2807,8 @@ import {
   Activity,
 } from "lucide-react";
 
+import CountUp from "../components/CountUp";
+
 export const Route = createFileRoute("/")({
   component: LandingPage,
 });
@@ -2378,25 +2817,6 @@ function LandingPage() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  const [animatedStats, setAnimatedStats] = useState({
-    students: 0,
-    companies: 0,
-    cities: 0,
-    success: 0,
-  });
-
-  // Animated counter for stats
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimatedStats({
-        students: 10000,
-        companies: 2500,
-        cities: 500,
-        success: 95,
-      });
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Auto-rotate testimonials
   useEffect(() => {
@@ -2409,28 +2829,49 @@ function LandingPage() {
   const impactMetrics = [
     {
       icon: <Users className="w-8 h-8" />,
-      number: "1.2L+",
+      number: (
+        <div className="flex items-center justify-center">
+          <CountUp to={120000} separator="," duration={2.5} />
+          <span className="ml-1">+</span>
+        </div>
+      ),
       label: "Youth Empowered",
       description: "Across rural India",
       color: "from-blue-500 to-cyan-500",
     },
     {
       icon: <Building className="w-8 h-8" />,
-      number: "5000+",
+      number: (
+        <div className="flex items-center justify-center">
+          <CountUp to={5000} separator="," duration={2.5} delay={0.5} />
+          <span className="ml-1">+</span>
+        </div>
+      ),
       label: "Partner Companies",
       description: "From startups to Fortune 500",
       color: "from-purple-500 to-pink-500",
     },
     {
       icon: <MapPin className="w-8 h-8" />,
-      number: "750+",
+      number: (
+        <div className="flex items-center justify-center">
+          <CountUp to={750} separator="," duration={2.5} delay={1} />
+          <span className="ml-1">+</span>
+        </div>
+      ),
       label: "Districts Covered",
       description: "Including tribal & remote areas",
       color: "from-green-500 to-emerald-500",
     },
     {
       icon: <IndianRupee className="w-8 h-8" />,
-      number: "₹850Cr+",
+      number: (
+        <div className="flex items-center justify-center">
+          <span className="mr-1">₹</span>
+          <CountUp to={850} separator="," duration={2.5} delay={1.5} />
+          <span className="ml-1">Cr+</span>
+        </div>
+      ),
       label: "Total Stipends",
       description: "Paid to interns nationwide",
       color: "from-orange-500 to-red-500",
@@ -2449,6 +2890,7 @@ function LandingPage() {
         "Career aspiration mapping",
       ],
       color: "from-purple-500 to-violet-600",
+      dataPoints: <CountUp to={50} duration={2} delay={0.5} />,
     },
     {
       icon: <Target className="w-12 h-12" />,
@@ -2461,6 +2903,7 @@ function LandingPage() {
         "Skill requirement analysis",
       ],
       color: "from-blue-500 to-indigo-600",
+      accuracy: <CountUp to={95} duration={2} delay={0.5} />,
     },
     {
       icon: <Zap className="w-12 h-12" />,
@@ -2473,6 +2916,7 @@ function LandingPage() {
         "Multi-language support",
       ],
       color: "from-amber-500 to-orange-600",
+      speed: <CountUp to={3} duration={2} delay={0.5} />,
     },
     {
       icon: <TrendingUp className="w-12 h-12" />,
@@ -2529,6 +2973,7 @@ function LandingPage() {
         "Voice input option",
         "Offline capability",
       ],
+      duration: <CountUp to={3} duration={2} delay={0.5} />,
     },
     {
       step: "02",
@@ -2540,6 +2985,7 @@ function LandingPage() {
         "Regional considerations",
         "Skills assessment",
       ],
+      dataPoints: <CountUp to={50} duration={2} delay={0.5} />,
     },
     {
       step: "03",
@@ -2551,6 +2997,8 @@ function LandingPage() {
         "Success prediction",
         "Growth potential analysis",
       ],
+      matchCount: <CountUp to={5} duration={2} delay={0.5} />,
+      accuracy: <CountUp to={95} duration={2} delay={1} />,
     },
     {
       step: "04",
@@ -2753,13 +3201,15 @@ function LandingPage() {
           </div>
 
           {/* Animated Impact Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+          <div id="impact" className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             {impactMetrics.map((metric, index) => (
               <div
                 key={index}
                 className="group bg-white/70 backdrop-blur-xl p-6 rounded-3xl border border-gray-200 hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-500 hover:border-transparent"
                 style={{
-                  background: `linear-gradient(135deg, white 0%, transparent 100%), linear-gradient(135deg, ${metric.color.split(" ")[1]} 0%, ${metric.color.split(" ")[3]} 100%)`,
+                  background: `linear-gradient(135deg, white 0%, transparent 100%), linear-gradient(135deg, ${
+                    metric.color.split(" ")[1]
+                  } 0%, ${metric.color.split(" ")[3]} 100%)`,
                   backgroundBlendMode: "overlay",
                 }}
               >
@@ -2825,6 +3275,21 @@ function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-blue-600 group-hover:bg-clip-text transition-all duration-300">
                   {feature.title}
+                  {feature.dataPoints && (
+                    <span className="block text-lg text-blue-600 font-normal">
+                      Analyzes {feature.dataPoints}+ data points
+                    </span>
+                  )}
+                  {feature.accuracy && (
+                    <span className="block text-lg text-blue-600 font-normal">
+                      {feature.accuracy}% compatibility matching
+                    </span>
+                  )}
+                  {feature.speed && (
+                    <span className="block text-lg text-amber-600 font-normal">
+                      Under {feature.speed} seconds response time
+                    </span>
+                  )}
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-lg">
                   {feature.description}
@@ -2884,9 +3349,29 @@ function LandingPage() {
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">
                       {step.title}
+                      {step.duration && (
+                        <span className="block text-sm text-green-600 font-normal">
+                          Just {step.duration} minutes
+                        </span>
+                      )}
+                      {step.dataPoints && (
+                        <span className="block text-sm text-blue-600 font-normal">
+                          {step.dataPoints}+ data points analyzed
+                        </span>
+                      )}
+                      {step.matchCount && (
+                        <span className="block text-sm text-orange-600 font-normal">
+                          Get 3-{step.matchCount} perfect matches
+                        </span>
+                      )}
                     </h3>
                     <p className="text-gray-600 mb-4 leading-relaxed">
                       {step.description}
+                      {step.accuracy && (
+                        <span className="block text-green-600 font-medium">
+                          {step.accuracy}% accuracy rate
+                        </span>
+                      )}
                     </p>
                     <div className="space-y-2">
                       {step.features.map((feature, idx) => (
@@ -2981,22 +3466,26 @@ function LandingPage() {
           {/* Additional Impact Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
             <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
-              <div className="text-4xl font-black text-green-600 mb-2">95%</div>
+              <div className="text-4xl font-black text-green-600 mb-2">
+                <CountUp to={95} duration={3} delay={1} />%
+              </div>
               <div className="text-gray-700 font-semibold">Success Rate</div>
               <div className="text-sm text-gray-500">
                 Interns completing programs
               </div>
             </div>
             <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
-              <div className="text-4xl font-black text-blue-600 mb-2">78%</div>
+              <div className="text-4xl font-black text-blue-600 mb-2">
+                <CountUp to={78} duration={3} delay={1.5} />%
+              </div>
               <div className="text-gray-700 font-semibold">Job Conversion</div>
               <div className="text-sm text-gray-500">
                 Interns getting full-time offers
               </div>
             </div>
             <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
-              <div className="text-4xl font-black text-purple-600 mb-2">
-                ₹24k
+              <div className="text-4xl font-black text-purple-600 mb-2 flex items-center justify-center">
+                ₹<CountUp to={24} duration={3} delay={2} />k
               </div>
               <div className="text-gray-700 font-semibold">Average Stipend</div>
               <div className="text-sm text-gray-500">Monthly compensation</div>
@@ -3059,7 +3548,9 @@ function LandingPage() {
           <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
               <Shield className="w-8 h-8 text-white/80 mx-auto mb-2" />
-              <div className="text-white font-semibold">100% Secure</div>
+              <div className="text-white font-semibold">
+                <CountUp to={100} duration={2} delay={2} />% Secure
+              </div>
               <div className="text-white/70 text-sm">Government Verified</div>
             </div>
             <div>
@@ -3070,11 +3561,15 @@ function LandingPage() {
             <div>
               <Languages className="w-8 h-8 text-white/80 mx-auto mb-2" />
               <div className="text-white font-semibold">Multi-Language</div>
-              <div className="text-white/70 text-sm">12+ Languages</div>
+              <div className="text-white/70 text-sm">
+                <CountUp to={12} duration={2} delay={2.5} />+ Languages
+              </div>
             </div>
             <div>
               <Clock className="w-8 h-8 text-white/80 mx-auto mb-2" />
-              <div className="text-white font-semibold">24/7 Support</div>
+              <div className="text-white font-semibold">
+                <CountUp to={24} duration={2} delay={3} />/7 Support
+              </div>
               <div className="text-white/70 text-sm">Always Available</div>
             </div>
           </div>
@@ -4318,6 +4813,7 @@ export default function App() {
 ================================================
 FILE: frontend/src/routes/login.tsx
 ================================================
+// frontend/src/routes/login.tsx
 import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -4332,29 +4828,34 @@ import {
   Smartphone,
   Languages,
   Clock,
-  Award,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-// Login Page Component
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { login, error, isLoading, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // setUser({
-    //   name: "Priya Sharma",
-    //   email: email,
-    //   education: "B.Tech Computer Science",
-    //   location: "Mumbai, Maharashtra",
-    // });
-    navigate({ to: "/dashboard" });
+    clearError();
+    
+    try {
+      await login(email, password);
+      // Navigate to dashboard on successful login
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      // Error is handled by the context
+      console.error("Login failed:", error);
+    }
   };
 
   return (
@@ -4438,6 +4939,16 @@ const LoginPage = () => {
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                  <p className="text-red-700 font-medium">{error}</p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-3">
@@ -4452,6 +4963,7 @@ const LoginPage = () => {
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                     placeholder="Enter your email address"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -4469,11 +4981,13 @@ const LoginPage = () => {
                     className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                     placeholder="Enter your password"
                     required
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={isLoading}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -4489,6 +5003,7 @@ const LoginPage = () => {
                   <input
                     type="checkbox"
                     className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                    disabled={isLoading}
                   />
                   <span className="ml-2 text-sm text-gray-600 font-medium">
                     Remember me
@@ -4497,6 +5012,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   className="text-sm font-bold text-orange-600 hover:text-orange-700 transition-colors"
+                  disabled={isLoading}
                 >
                   Forgot Password?
                 </button>
@@ -4504,10 +5020,20 @@ const LoginPage = () => {
 
               <button
                 type="submit"
-                className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center"
+                disabled={isLoading}
+                className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                Sign In to Your Account
-                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  <>
+                    Sign In to Your Account
+                    <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
             </form>
 
@@ -5744,6 +6270,7 @@ const ProfilePage = () => {
 ================================================
 FILE: frontend/src/routes/register.tsx
 ================================================
+// frontend/src/routes/register.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -5755,24 +6282,24 @@ import {
   Sparkles,
   ArrowRight,
   Shield,
-  Smartphone,
-  Languages,
-  Clock,
   Award,
   CheckCircle,
   Rocket,
   Target,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
+import { useAuth } from "../contexts/AuthContext";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-// Register Page Component
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { register, error, isLoading, clearError } = useAuth();
   const [formData, setFormData] = useState({
-    name: "",
+    fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -5780,10 +6307,41 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [passwordMatch, setPasswordMatch] = useState(true);
 
-  const handleSubmit = (e) => {
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Check password match in real-time
+    if (field === 'confirmPassword') {
+      setPasswordMatch(value === formData.password);
+    } else if (field === 'password') {
+      setPasswordMatch(formData.confirmPassword === value || formData.confirmPassword === '');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate({ to: "/onboarding" });
+    clearError();
+    
+    // Validate form
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordMatch(false);
+      return;
+    }
+    
+    if (!acceptedTerms) {
+      return;
+    }
+
+    try {
+      await register(formData.fullName, formData.email, formData.password);
+      // Navigate to login page with success message
+      navigate({ to: "/login" });
+    } catch (error) {
+      // Error is handled by the context
+      console.error("Registration failed:", error);
+    }
   };
 
   const benefits = [
@@ -5890,6 +6448,16 @@ const RegisterPage = () => {
                   </p>
                 </div>
 
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <div className="flex items-center">
+                      <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                      <p className="text-red-700 font-medium">{error}</p>
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-3">
@@ -5899,13 +6467,12 @@ const RegisterPage = () => {
                       <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                       <input
                         type="text"
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
+                        value={formData.fullName}
+                        onChange={(e) => handleInputChange('fullName', e.target.value)}
                         className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                         placeholder="Enter your full name"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -5919,12 +6486,11 @@ const RegisterPage = () => {
                       <input
                         type="email"
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                         placeholder="Enter your email address"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -5938,17 +6504,17 @@ const RegisterPage = () => {
                       <input
                         type={showPassword ? "text" : "password"}
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
+                        onChange={(e) => handleInputChange('password', e.target.value)}
                         className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                         placeholder="Create a strong password"
                         required
+                        disabled={isLoading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -5964,21 +6530,28 @@ const RegisterPage = () => {
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         value={formData.confirmPassword}
-                        onChange={(e) =>
-                          setFormData({ ...formData, confirmPassword: e.target.value })
-                        }
-                        className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
+                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        className={`w-full pl-12 pr-12 py-4 border-2 rounded-2xl focus:ring-2 transition-all duration-300 bg-white shadow-inner text-lg ${
+                          !passwordMatch && formData.confirmPassword
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                            : 'border-gray-200 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                         placeholder="Confirm your password"
                         required
+                        disabled={isLoading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
                       >
                         {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
+                    {!passwordMatch && formData.confirmPassword && (
+                      <p className="text-red-500 text-sm mt-2">Passwords do not match</p>
+                    )}
                   </div>
 
                   <div className="flex items-start space-x-3">
@@ -5988,6 +6561,7 @@ const RegisterPage = () => {
                       onChange={(e) => setAcceptedTerms(e.target.checked)}
                       className="w-5 h-5 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 mt-1"
                       required
+                      disabled={isLoading}
                     />
                     <label className="text-sm text-gray-600 font-medium leading-relaxed">
                       I agree to the{" "}
@@ -6003,10 +6577,20 @@ const RegisterPage = () => {
 
                   <button
                     type="submit"
-                    className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center"
+                    disabled={isLoading || !passwordMatch || !acceptedTerms}
+                    className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
-                    Create My Account
-                    <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        Create My Account
+                        <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </form>
 
@@ -6139,6 +6723,133 @@ function RouteComponent() {
     </section>
   );
 }
+
+
+
+================================================
+FILE: frontend/src/utils/api.ts
+================================================
+// frontend/src/utils/api.ts
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+interface ApiResponse<T = any> {
+  statusCode: number;
+  data: T;
+  message: string;
+  success: boolean;
+}
+
+interface LoginData {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
+interface User {
+  _id: string;
+  fullName: string;
+  email: string;
+  education?: string;
+  location?: string;
+  skills?: string[];
+  interests?: string[];
+  isOnboardingComplete: boolean;
+  profileScore: number;
+}
+
+interface AuthResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+class ApiService {
+  private getAuthHeaders() {
+    const token = localStorage.getItem('accessToken');
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
+  }
+
+  async makeRequest<T>(
+    endpoint: string, 
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: this.getAuthHeaders(),
+        credentials: 'include',
+        ...options,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Something went wrong');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Request failed:', error);
+      throw error;
+    }
+  }
+
+  // Auth endpoints
+  async register(userData: RegisterData): Promise<ApiResponse<User>> {
+    return this.makeRequest<User>('/api/v1/users/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async login(credentials: LoginData): Promise<ApiResponse<AuthResponse>> {
+    return this.makeRequest<AuthResponse>('/api/v1/users/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+  }
+
+  async logout(): Promise<ApiResponse<{}>> {
+    return this.makeRequest<{}>('/api/v1/users/logout', {
+      method: 'POST',
+    });
+  }
+
+  async getCurrentUser(): Promise<ApiResponse<{ user: User }>> {
+    return this.makeRequest<{ user: User }>('/api/v1/users/current-user');
+  }
+
+  async refreshToken(): Promise<ApiResponse<AuthResponse>> {
+    return this.makeRequest<AuthResponse>('/api/v1/users/refresh-access-token', {
+      method: 'POST',
+    });
+  }
+
+  // Onboarding endpoints
+  async updateOnboardingStep(stepData: any): Promise<ApiResponse<{ user: User }>> {
+    return this.makeRequest<{ user: User }>('/api/v1/users/onboarding/step', {
+      method: 'PATCH',
+      body: JSON.stringify(stepData),
+    });
+  }
+
+  async completeOnboarding(onboardingData: any): Promise<ApiResponse<{ user: User }>> {
+    return this.makeRequest<{ user: User }>('/api/v1/users/onboarding/complete', {
+      method: 'PATCH',
+      body: JSON.stringify(onboardingData),
+    });
+  }
+}
+
+export const apiService = new ApiService();
+export type { User, AuthResponse, LoginData, RegisterData };
 
 
 

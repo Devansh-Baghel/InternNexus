@@ -1,3 +1,4 @@
+// frontend/src/routes/login.tsx
 import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -12,29 +13,34 @@ import {
   Smartphone,
   Languages,
   Clock,
-  Award,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-// Login Page Component
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { login, error, isLoading, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // setUser({
-    //   name: "Priya Sharma",
-    //   email: email,
-    //   education: "B.Tech Computer Science",
-    //   location: "Mumbai, Maharashtra",
-    // });
-    navigate({ to: "/dashboard" });
+    clearError();
+    
+    try {
+      await login(email, password);
+      // Navigate to dashboard on successful login
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      // Error is handled by the context
+      console.error("Login failed:", error);
+    }
   };
 
   return (
@@ -118,6 +124,16 @@ const LoginPage = () => {
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                  <p className="text-red-700 font-medium">{error}</p>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-3">
@@ -132,6 +148,7 @@ const LoginPage = () => {
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                     placeholder="Enter your email address"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -149,11 +166,13 @@ const LoginPage = () => {
                     className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                     placeholder="Enter your password"
                     required
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={isLoading}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -169,6 +188,7 @@ const LoginPage = () => {
                   <input
                     type="checkbox"
                     className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
+                    disabled={isLoading}
                   />
                   <span className="ml-2 text-sm text-gray-600 font-medium">
                     Remember me
@@ -177,6 +197,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   className="text-sm font-bold text-orange-600 hover:text-orange-700 transition-colors"
+                  disabled={isLoading}
                 >
                   Forgot Password?
                 </button>
@@ -184,10 +205,20 @@ const LoginPage = () => {
 
               <button
                 type="submit"
-                className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center"
+                disabled={isLoading}
+                className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                Sign In to Your Account
-                <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  <>
+                    Sign In to Your Account
+                    <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
             </form>
 

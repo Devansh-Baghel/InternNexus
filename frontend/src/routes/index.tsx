@@ -32,6 +32,8 @@ import {
   Activity,
 } from "lucide-react";
 
+import CountUp from "../components/CountUp";
+
 export const Route = createFileRoute("/")({
   component: LandingPage,
 });
@@ -40,25 +42,6 @@ function LandingPage() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
-  const [animatedStats, setAnimatedStats] = useState({
-    students: 0,
-    companies: 0,
-    cities: 0,
-    success: 0,
-  });
-
-  // Animated counter for stats
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimatedStats({
-        students: 10000,
-        companies: 2500,
-        cities: 500,
-        success: 95,
-      });
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Auto-rotate testimonials
   useEffect(() => {
@@ -71,28 +54,49 @@ function LandingPage() {
   const impactMetrics = [
     {
       icon: <Users className="w-8 h-8" />,
-      number: "1.2L+",
+      number: (
+        <div className="flex items-center justify-center">
+          <CountUp to={120000} separator="," duration={2.5} />
+          <span className="ml-1">+</span>
+        </div>
+      ),
       label: "Youth Empowered",
       description: "Across rural India",
       color: "from-blue-500 to-cyan-500",
     },
     {
       icon: <Building className="w-8 h-8" />,
-      number: "5000+",
+      number: (
+        <div className="flex items-center justify-center">
+          <CountUp to={5000} separator="," duration={2.5} delay={0.5} />
+          <span className="ml-1">+</span>
+        </div>
+      ),
       label: "Partner Companies",
       description: "From startups to Fortune 500",
       color: "from-purple-500 to-pink-500",
     },
     {
       icon: <MapPin className="w-8 h-8" />,
-      number: "750+",
+      number: (
+        <div className="flex items-center justify-center">
+          <CountUp to={750} separator="," duration={2.5} delay={1} />
+          <span className="ml-1">+</span>
+        </div>
+      ),
       label: "Districts Covered",
       description: "Including tribal & remote areas",
       color: "from-green-500 to-emerald-500",
     },
     {
       icon: <IndianRupee className="w-8 h-8" />,
-      number: "₹850Cr+",
+      number: (
+        <div className="flex items-center justify-center">
+          <span className="mr-1">₹</span>
+          <CountUp to={850} separator="," duration={2.5} delay={1.5} />
+          <span className="ml-1">Cr+</span>
+        </div>
+      ),
       label: "Total Stipends",
       description: "Paid to interns nationwide",
       color: "from-orange-500 to-red-500",
@@ -111,6 +115,7 @@ function LandingPage() {
         "Career aspiration mapping",
       ],
       color: "from-purple-500 to-violet-600",
+      dataPoints: <CountUp to={50} duration={2} delay={0.5} />,
     },
     {
       icon: <Target className="w-12 h-12" />,
@@ -123,6 +128,7 @@ function LandingPage() {
         "Skill requirement analysis",
       ],
       color: "from-blue-500 to-indigo-600",
+      accuracy: <CountUp to={95} duration={2} delay={0.5} />,
     },
     {
       icon: <Zap className="w-12 h-12" />,
@@ -135,6 +141,7 @@ function LandingPage() {
         "Multi-language support",
       ],
       color: "from-amber-500 to-orange-600",
+      speed: <CountUp to={3} duration={2} delay={0.5} />,
     },
     {
       icon: <TrendingUp className="w-12 h-12" />,
@@ -191,6 +198,7 @@ function LandingPage() {
         "Voice input option",
         "Offline capability",
       ],
+      duration: <CountUp to={3} duration={2} delay={0.5} />,
     },
     {
       step: "02",
@@ -202,6 +210,7 @@ function LandingPage() {
         "Regional considerations",
         "Skills assessment",
       ],
+      dataPoints: <CountUp to={50} duration={2} delay={0.5} />,
     },
     {
       step: "03",
@@ -213,6 +222,8 @@ function LandingPage() {
         "Success prediction",
         "Growth potential analysis",
       ],
+      matchCount: <CountUp to={5} duration={2} delay={0.5} />,
+      accuracy: <CountUp to={95} duration={2} delay={1} />,
     },
     {
       step: "04",
@@ -415,13 +426,15 @@ function LandingPage() {
           </div>
 
           {/* Animated Impact Metrics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+          <div id="impact" className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             {impactMetrics.map((metric, index) => (
               <div
                 key={index}
                 className="group bg-white/70 backdrop-blur-xl p-6 rounded-3xl border border-gray-200 hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-500 hover:border-transparent"
                 style={{
-                  background: `linear-gradient(135deg, white 0%, transparent 100%), linear-gradient(135deg, ${metric.color.split(" ")[1]} 0%, ${metric.color.split(" ")[3]} 100%)`,
+                  background: `linear-gradient(135deg, white 0%, transparent 100%), linear-gradient(135deg, ${
+                    metric.color.split(" ")[1]
+                  } 0%, ${metric.color.split(" ")[3]} 100%)`,
                   backgroundBlendMode: "overlay",
                 }}
               >
@@ -487,6 +500,21 @@ function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-blue-600 group-hover:bg-clip-text transition-all duration-300">
                   {feature.title}
+                  {feature.dataPoints && (
+                    <span className="block text-lg text-blue-600 font-normal">
+                      Analyzes {feature.dataPoints}+ data points
+                    </span>
+                  )}
+                  {feature.accuracy && (
+                    <span className="block text-lg text-blue-600 font-normal">
+                      {feature.accuracy}% compatibility matching
+                    </span>
+                  )}
+                  {feature.speed && (
+                    <span className="block text-lg text-amber-600 font-normal">
+                      Under {feature.speed} seconds response time
+                    </span>
+                  )}
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-lg">
                   {feature.description}
@@ -546,9 +574,29 @@ function LandingPage() {
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">
                       {step.title}
+                      {step.duration && (
+                        <span className="block text-sm text-green-600 font-normal">
+                          Just {step.duration} minutes
+                        </span>
+                      )}
+                      {step.dataPoints && (
+                        <span className="block text-sm text-blue-600 font-normal">
+                          {step.dataPoints}+ data points analyzed
+                        </span>
+                      )}
+                      {step.matchCount && (
+                        <span className="block text-sm text-orange-600 font-normal">
+                          Get 3-{step.matchCount} perfect matches
+                        </span>
+                      )}
                     </h3>
                     <p className="text-gray-600 mb-4 leading-relaxed">
                       {step.description}
+                      {step.accuracy && (
+                        <span className="block text-green-600 font-medium">
+                          {step.accuracy}% accuracy rate
+                        </span>
+                      )}
                     </p>
                     <div className="space-y-2">
                       {step.features.map((feature, idx) => (
@@ -643,22 +691,26 @@ function LandingPage() {
           {/* Additional Impact Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
             <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
-              <div className="text-4xl font-black text-green-600 mb-2">95%</div>
+              <div className="text-4xl font-black text-green-600 mb-2">
+                <CountUp to={95} duration={3} delay={1} />%
+              </div>
               <div className="text-gray-700 font-semibold">Success Rate</div>
               <div className="text-sm text-gray-500">
                 Interns completing programs
               </div>
             </div>
             <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
-              <div className="text-4xl font-black text-blue-600 mb-2">78%</div>
+              <div className="text-4xl font-black text-blue-600 mb-2">
+                <CountUp to={78} duration={3} delay={1.5} />%
+              </div>
               <div className="text-gray-700 font-semibold">Job Conversion</div>
               <div className="text-sm text-gray-500">
                 Interns getting full-time offers
               </div>
             </div>
             <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
-              <div className="text-4xl font-black text-purple-600 mb-2">
-                ₹24k
+              <div className="text-4xl font-black text-purple-600 mb-2 flex items-center justify-center">
+                ₹<CountUp to={24} duration={3} delay={2} />k
               </div>
               <div className="text-gray-700 font-semibold">Average Stipend</div>
               <div className="text-sm text-gray-500">Monthly compensation</div>
@@ -721,7 +773,9 @@ function LandingPage() {
           <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
               <Shield className="w-8 h-8 text-white/80 mx-auto mb-2" />
-              <div className="text-white font-semibold">100% Secure</div>
+              <div className="text-white font-semibold">
+                <CountUp to={100} duration={2} delay={2} />% Secure
+              </div>
               <div className="text-white/70 text-sm">Government Verified</div>
             </div>
             <div>
@@ -732,11 +786,15 @@ function LandingPage() {
             <div>
               <Languages className="w-8 h-8 text-white/80 mx-auto mb-2" />
               <div className="text-white font-semibold">Multi-Language</div>
-              <div className="text-white/70 text-sm">12+ Languages</div>
+              <div className="text-white/70 text-sm">
+                <CountUp to={12} duration={2} delay={2.5} />+ Languages
+              </div>
             </div>
             <div>
               <Clock className="w-8 h-8 text-white/80 mx-auto mb-2" />
-              <div className="text-white font-semibold">24/7 Support</div>
+              <div className="text-white font-semibold">
+                <CountUp to={24} duration={2} delay={3} />/7 Support
+              </div>
               <div className="text-white/70 text-sm">Always Available</div>
             </div>
           </div>

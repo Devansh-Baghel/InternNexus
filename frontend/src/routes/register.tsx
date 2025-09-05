@@ -1,3 +1,4 @@
+// frontend/src/routes/register.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -9,24 +10,24 @@ import {
   Sparkles,
   ArrowRight,
   Shield,
-  Smartphone,
-  Languages,
-  Clock,
   Award,
   CheckCircle,
   Rocket,
   Target,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
+import { useAuth } from "../contexts/AuthContext";
 
 export const Route = createFileRoute("/register")({
   component: RegisterPage,
 });
 
-// Register Page Component
 const RegisterPage = () => {
   const navigate = useNavigate();
+  const { register, error, isLoading, clearError } = useAuth();
   const [formData, setFormData] = useState({
-    name: "",
+    fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -34,10 +35,41 @@ const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [passwordMatch, setPasswordMatch] = useState(true);
 
-  const handleSubmit = (e) => {
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Check password match in real-time
+    if (field === 'confirmPassword') {
+      setPasswordMatch(value === formData.password);
+    } else if (field === 'password') {
+      setPasswordMatch(formData.confirmPassword === value || formData.confirmPassword === '');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate({ to: "/onboarding" });
+    clearError();
+    
+    // Validate form
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordMatch(false);
+      return;
+    }
+    
+    if (!acceptedTerms) {
+      return;
+    }
+
+    try {
+      await register(formData.fullName, formData.email, formData.password);
+      // Navigate to login page with success message
+      navigate({ to: "/login" });
+    } catch (error) {
+      // Error is handled by the context
+      console.error("Registration failed:", error);
+    }
   };
 
   const benefits = [
@@ -144,6 +176,16 @@ const RegisterPage = () => {
                   </p>
                 </div>
 
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <div className="flex items-center">
+                      <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                      <p className="text-red-700 font-medium">{error}</p>
+                    </div>
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-3">
@@ -153,13 +195,12 @@ const RegisterPage = () => {
                       <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                       <input
                         type="text"
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
+                        value={formData.fullName}
+                        onChange={(e) => handleInputChange('fullName', e.target.value)}
                         className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                         placeholder="Enter your full name"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -173,12 +214,11 @@ const RegisterPage = () => {
                       <input
                         type="email"
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                         placeholder="Enter your email address"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -192,17 +232,17 @@ const RegisterPage = () => {
                       <input
                         type={showPassword ? "text" : "password"}
                         value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
+                        onChange={(e) => handleInputChange('password', e.target.value)}
                         className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
                         placeholder="Create a strong password"
                         required
+                        disabled={isLoading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
                       >
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
@@ -218,21 +258,28 @@ const RegisterPage = () => {
                       <input
                         type={showConfirmPassword ? "text" : "password"}
                         value={formData.confirmPassword}
-                        onChange={(e) =>
-                          setFormData({ ...formData, confirmPassword: e.target.value })
-                        }
-                        className="w-full pl-12 pr-12 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 bg-white shadow-inner text-lg"
+                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        className={`w-full pl-12 pr-12 py-4 border-2 rounded-2xl focus:ring-2 transition-all duration-300 bg-white shadow-inner text-lg ${
+                          !passwordMatch && formData.confirmPassword
+                            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                            : 'border-gray-200 focus:ring-orange-500 focus:border-orange-500'
+                        }`}
                         placeholder="Confirm your password"
                         required
+                        disabled={isLoading}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                         className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
                       >
                         {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
+                    {!passwordMatch && formData.confirmPassword && (
+                      <p className="text-red-500 text-sm mt-2">Passwords do not match</p>
+                    )}
                   </div>
 
                   <div className="flex items-start space-x-3">
@@ -242,6 +289,7 @@ const RegisterPage = () => {
                       onChange={(e) => setAcceptedTerms(e.target.checked)}
                       className="w-5 h-5 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 mt-1"
                       required
+                      disabled={isLoading}
                     />
                     <label className="text-sm text-gray-600 font-medium leading-relaxed">
                       I agree to the{" "}
@@ -257,10 +305,20 @@ const RegisterPage = () => {
 
                   <button
                     type="submit"
-                    className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center"
+                    disabled={isLoading || !passwordMatch || !acceptedTerms}
+                    className="group w-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-4 rounded-2xl font-black text-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
-                    Create My Account
-                    <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        Create My Account
+                        <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </button>
                 </form>
 
