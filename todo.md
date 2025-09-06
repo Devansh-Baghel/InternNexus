@@ -1,0 +1,4 @@
+- [ ] scale down entire ui
+- [ ] toast system for all interactions
+- [ ] better animated landing page
+- [ ] change to shadcn checkbox for all checkboxes
