@@ -22,7 +22,7 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
     },
-    
+
     // Profile Information
     education: {
       type: String,
@@ -46,22 +46,45 @@ const userSchema = mongoose.Schema(
     dateOfBirth: {
       type: Date,
     },
-    
+
     // Skills and Interests
-    skills: [{
-      type: String,
-      trim: true,
-    }],
-    interests: [{
-      type: String,
-      trim: true,
-    }],
+    skills: [
+      {
+        type: String,
+        trim: true,
+        maxlength: [50, "Skill name cannot exceed 50 characters"],
+        validate: {
+          validator: function (v) {
+            return v.length > 0; // Ensure skill is not empty after trimming
+          },
+          message: "Skill cannot be empty",
+        },
+      },
+    ],
+    interests: [
+      {
+        type: String,
+        trim: true,
+        maxlength: [50, "Interest name cannot exceed 50 characters"],
+        validate: {
+          validator: function (v) {
+            return v.length > 0; // Ensure interest is not empty after trimming
+          },
+          message: "Interest cannot be empty",
+        },
+      },
+    ],
+
+    // Update the experience enum to be more specific
     experience: {
       type: String,
-      enum: ["none", "some", "internship", "part-time"],
+      enum: {
+        values: ["none", "some", "internship", "part-time"],
+        message: "Experience must be one of: none, some, internship, part-time",
+      },
       default: "none",
     },
-    
+
     // Profile Stats
     profileViews: {
       type: Number,
@@ -77,21 +100,25 @@ const userSchema = mongoose.Schema(
       min: 0,
       max: 100,
     },
-    
+
     // Internship Related
-    applications: [{
-      type: Schema.Types.ObjectId,
-      ref: "Application",
-    }],
-    savedInternships: [{
-      type: Schema.Types.ObjectId,
-      ref: "Internship",
-    }],
+    applications: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Application",
+      },
+    ],
+    savedInternships: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Internship",
+      },
+    ],
     completedApplications: {
       type: Number,
       default: 0,
     },
-    
+
     // Onboarding
     isOnboardingComplete: {
       type: Boolean,
@@ -103,7 +130,7 @@ const userSchema = mongoose.Schema(
       min: 1,
       max: 4,
     },
-    
+
     // Financial (from existing template)
     income: {
       type: Number,
@@ -126,21 +153,21 @@ const userSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    
+
     // Premium Features
     isPaidUser: {
       type: Boolean,
       default: false,
     },
-    stripeSessionId: { 
-      type: String 
+    stripeSessionId: {
+      type: String,
     },
-    
+
     // Authentication
     refreshToken: {
       type: String,
     },
-    
+
     // Preferences
     preferences: {
       emailNotifications: {

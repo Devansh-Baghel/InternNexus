@@ -27,24 +27,35 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Update the AuthProvider component
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Add method to refresh user data
+  const refreshUser = async () => {
+    try {
+      const response = await apiService.getCurrentUser();
+      setUser(response.data.user);
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+    }
+  };
+
   // Initialize auth state on app load
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = localStorage.getItem("accessToken");
         if (token) {
           const response = await apiService.getCurrentUser();
           setUser(response.data.user);
         }
       } catch (error) {
         // Token might be expired, clear it
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
       } finally {
         setIsLoading(false);
       }
@@ -53,37 +64,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     initializeAuth();
   }, []);
 
+  // Update the login function to refresh user data
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await apiService.login({ email, password });
       const { user: userData, accessToken, refreshToken } = response.data;
-      
+
       // Store tokens
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
       setUser(userData);
     } catch (error: any) {
-      setError(error.message || 'Login failed');
+      setError(error.message || "Login failed");
       throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (fullName: string, email: string, password: string) => {
+  const register = async (
+    fullName: string,
+    email: string,
+    password: string
+  ) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await apiService.register({ fullName, email, password });
       // Registration successful, but user needs to login
       setError(null);
     } catch (error: any) {
-      setError(error.message || 'Registration failed');
+      setError(error.message || "Registration failed");
       throw error;
     } finally {
       setIsLoading(false);
@@ -94,11 +110,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       await apiService.logout();
     } catch (error) {
-      console.error('Logout API call failed:', error);
+      console.error("Logout API call failed:", error);
     } finally {
       // Clear local state regardless of API call success
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
       setUser(null);
     }
   };
@@ -113,11 +129,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isLoading,
     error,
     clearError,
+    refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

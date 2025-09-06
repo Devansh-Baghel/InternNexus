@@ -24,9 +24,11 @@ interface User {
   fullName: string;
   email: string;
   education?: string;
+  field?: string;
   location?: string;
   skills?: string[];
   interests?: string[];
+  experience?: string;
   isOnboardingComplete: boolean;
   profileScore: number;
 }
@@ -37,83 +39,133 @@ interface AuthResponse {
   refreshToken: string;
 }
 
+interface OnboardingData {
+  education: string;
+  field?: string;
+  skills: string[];
+  interests: string[];
+  location: string;
+  experience: "none" | "some" | "internship" | "part-time";
+}
+
+interface OnboardingStatus {
+  isOnboardingComplete: boolean;
+  hasEducation: boolean;
+  hasSkills: boolean;
+  hasInterests: boolean;
+  hasLocation: boolean;
+  hasExperience: boolean;
+  profileScore: number;
+  currentData: OnboardingData;
+}
+
 class ApiService {
   private getAuthHeaders() {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem("accessToken");
     return {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
     };
   }
 
   async makeRequest<T>(
-    endpoint: string, 
+    endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: this.getAuthHeaders(),
-        credentials: 'include',
+        credentials: "include",
         ...options,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Something went wrong');
+        throw new Error(data.message || "Something went wrong");
       }
 
       return data;
     } catch (error) {
-      console.error('API Request failed:', error);
+      console.error("API Request failed:", error);
       throw error;
     }
   }
 
   // Auth endpoints
   async register(userData: RegisterData): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/api/v1/users/register', {
-      method: 'POST',
+    return this.makeRequest<User>("/api/v1/users/register", {
+      method: "POST",
       body: JSON.stringify(userData),
     });
   }
 
   async login(credentials: LoginData): Promise<ApiResponse<AuthResponse>> {
-    return this.makeRequest<AuthResponse>('/api/v1/users/login', {
-      method: 'POST',
+    return this.makeRequest<AuthResponse>("/api/v1/users/login", {
+      method: "POST",
       body: JSON.stringify(credentials),
     });
   }
 
   async logout(): Promise<ApiResponse<{}>> {
-    return this.makeRequest<{}>('/api/v1/users/logout', {
-      method: 'POST',
+    return this.makeRequest<{}>("/api/v1/users/logout", {
+      method: "POST",
     });
   }
 
   async getCurrentUser(): Promise<ApiResponse<{ user: User }>> {
-    return this.makeRequest<{ user: User }>('/api/v1/users/current-user');
+    return this.makeRequest<{ user: User }>("/api/v1/users/current-user");
   }
 
   async refreshToken(): Promise<ApiResponse<AuthResponse>> {
-    return this.makeRequest<AuthResponse>('/api/v1/users/refresh-access-token', {
-      method: 'POST',
-    });
+    return this.makeRequest<AuthResponse>(
+      "/api/v1/users/refresh-access-token",
+      {
+        method: "POST",
+      }
+    );
   }
 
   // Onboarding endpoints
-  async updateOnboardingStep(stepData: any): Promise<ApiResponse<{ user: User }>> {
-    return this.makeRequest<{ user: User }>('/api/v1/users/onboarding/step', {
-      method: 'PATCH',
+  async updateOnboardingStep(
+    stepData: any
+  ): Promise<ApiResponse<{ user: User }>> {
+    return this.makeRequest<{ user: User }>("/api/v1/users/onboarding/step", {
+      method: "PATCH",
       body: JSON.stringify(stepData),
     });
   }
 
-  async completeOnboarding(onboardingData: any): Promise<ApiResponse<{ user: User }>> {
-    return this.makeRequest<{ user: User }>('/api/v1/users/onboarding/complete', {
-      method: 'PATCH',
-      body: JSON.stringify(onboardingData),
+  // Get onboarding status
+  async getOnboardingStatus(): Promise<
+    ApiResponse<{ onboarding: OnboardingStatus }>
+  > {
+    return this.makeRequest<{ onboarding: OnboardingStatus }>(
+      "/api/v1/users/onboarding/status"
+    );
+  }
+
+  // Validate onboarding data
+  async validateOnboardingData(
+    data: OnboardingData
+  ): Promise<ApiResponse<any>> {
+    return this.makeRequest("/api/v1/users/onboarding/validate", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
+  }
+
+  // Complete onboarding
+  async completeOnboarding(
+    data: OnboardingData
+  ): Promise<ApiResponse<{ user: User }>> {
+    return this.makeRequest<{ user: User }>(
+      "/api/v1/users/onboarding/complete",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
   }
 }
 

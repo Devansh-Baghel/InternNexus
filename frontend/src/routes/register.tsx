@@ -27,7 +27,7 @@ export const Route = createFileRoute("/register")({
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { register, error, isLoading, clearError } = useAuth();
+  const { register, error, isLoading, clearError, login } = useAuth();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -68,13 +68,22 @@ const RegisterPage = () => {
 
     try {
       await register(formData.fullName, formData.email, formData.password);
-      // Navigate to login page with success message
-      navigate({ to: "/login" });
+
+      // Auto-login after successful registration
+      try {
+        await login(formData.email, formData.password);
+        // Navigate to onboarding on successful login
+        navigate({ to: "/onboarding" });
+      } catch (loginError) {
+        // If auto-login fails, redirect to login page
+        navigate({ to: "/login" });
+      }
     } catch (error) {
       // Error is handled by the context
       console.error("Registration failed:", error);
     }
   };
+
 
   const benefits = [
     {

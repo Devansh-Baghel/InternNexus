@@ -128,74 +128,171 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
     );
 });
 
-// Onboarding Controllers
-export const updateOnboardingStep = asyncHandler(async (req, res) => {
-  const { step, education, field, skills, interests, location, experience } = req.body;
+// Updated completeOnboarding function
+export const completeOnboarding = asyncHandler(async (req, res) => {
+  const { education, field, skills, interests, location, experience } = req.body;
   const user = req.user;
 
-  const updateData = { onboardingStep: step };
-
-  // Update based on step
-  switch (step) {
-    case 1:
-      if (education) updateData.education = education;
-      if (field) updateData.field = field;
-      break;
-    case 2:
-      if (skills) updateData.skills = skills;
-      break;
-    case 3:
-      if (interests) updateData.interests = interests;
-      break;
-    case 4:
-      if (location) updateData.location = location;
-      if (experience) updateData.experience = experience;
-      updateData.isOnboardingComplete = true;
-      break;
+  // Validation
+  if (!education) {
+    throw new ApiError(400, "Education is required");
+  }
+  
+  if (!skills || !Array.isArray(skills) || skills.length === 0) {
+    throw new ApiError(400, "At least one skill is required");
+  }
+  
+  if (!interests || !Array.isArray(interests) || interests.length === 0) {
+    throw new ApiError(400, "At least one interest is required");
+  }
+  
+  if (!location) {
+    throw new ApiError(400, "Location is required");
+  }
+  
+  if (!experience) {
+    throw new ApiError(400, "Experience level is required");
   }
 
+  // Validate experience enum
+  const validExperience = ["none", "some", "internship", "part-time"];
+  if (!validExperience.includes(experience)) {
+    throw new ApiError(400, "Invalid experience level");
+  }
+
+  // Validate skills array (max 20 skills)
+  if (skills.length > 20) {
+    throw new ApiError(400, "Maximum 20 skills allowed");
+  }
+
+  // Validate interests array (max 15 interests)
+  if (interests.length > 15) {
+    throw new ApiError(400, "Maximum 15 interests allowed");
+  }
+
+  // Update user with all onboarding data
   const updatedUser = await User.findByIdAndUpdate(
     user._id,
-    updateData,
-    { new: true }
+    {
+      education: education.trim(),
+      field: field?.trim() || "", // Optional field
+      skills: skills.map(skill => skill.trim()).filter(skill => skill.length > 0),
+      interests: interests.map(interest => interest.trim()).filter(interest => interest.length > 0),
+      location: location.trim(),
+      experience,
+      isOnboardingComplete: true,
+      onboardingStep: 4, // Set to final step
+    },
+    { 
+      new: true,
+      runValidators: true 
+    }
   ).select("-password -refreshToken");
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200, 
+        { user: updatedUser }, 
+        "Onboarding completed successfully! Welcome to InternNexus."
+      )
+    );
+});
+
+// New function to get onboarding status
+export const getOnboardingStatus = asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  const onboardingData = {
+    isOnboardingComplete: user.isOnboardingComplete,
+    hasEducation: !!user.education,
+    hasSkills: user.skills && user.skills.length > 0,
+    hasInterests: user.interests && user.interests.length > 0,
+    hasLocation: !!user.location,
+    hasExperience: !!user.experience,
+    profileScore: user.profileScore,
+    currentData: {
+      education: user.education || "",
+      field: user.field || "",
+      skills: user.skills || [],
+      interests: user.interests || [],
+      location: user.location || "",
+      experience: user.experience || ""
+    }
+  };
 
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        { user: updatedUser },
-        `Onboarding step ${step} updated successfully`
+        { onboarding: onboardingData },
+        "Onboarding status retrieved successfully"
       )
     );
 });
 
-export const completeOnboarding = asyncHandler(async (req, res) => {
+// New function to validate onboarding data without saving
+export const validateOnboardingData = asyncHandler(async (req, res) => {
   const { education, field, skills, interests, location, experience } = req.body;
-  const user = req.user;
 
-  const updatedUser = await User.findByIdAndUpdate(
-    user._id,
-    {
-      education,
-      field,
-      skills,
-      interests,
-      location,
-      experience,
-      isOnboardingComplete: true,
-      onboardingStep: 4,
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+  const validationErrors = [];
 
-  if (!updatedUser) throw new ApiError(404, "User not found");
+  // Validate each field
+  if (!education || education.trim().length === 0) {
+    validationErrors.push("Education is required");
+  }
+
+  if (!skills || !Array.isArray(skills) || skills.length === 0) {
+    validationErrors.push("At least one skill is required");
+  } else if (skills.length > 20) {
+    validationErrors.push("Maximum 20 skills allowed");
+  }
+
+  if (!interests || !Array.isArray(interests) || interests.length === 0) {
+    validationErrors.push("At least one interest is required");
+  } else if (interests.length > 15) {
+    validationErrors.push("Maximum 15 interests allowed");
+  }
+
+  if (!location || location.trim().length === 0) {
+    validationErrors.push("Location is required");
+  }
+
+  if (!experience || experience.trim().length === 0) {
+    validationErrors.push("Experience level is required");
+  } else {
+    const validExperience = ["none", "some", "internship", "part-time"];
+    if (!validExperience.includes(experience)) {
+      validationErrors.push("Invalid experience level");
+    }
+  }
+
+  const isValid = validationErrors.length === 0;
 
   return res
     .status(200)
     .json(
-      new ApiResponse(200, { user: updatedUser }, "Onboarding completed successfully")
+      new ApiResponse(
+        200,
+        { 
+          isValid,
+          errors: validationErrors,
+          summary: {
+            education: !!education,
+            skills: skills?.length || 0,
+            interests: interests?.length || 0,
+            location: !!location,
+            experience: !!experience
+          }
+        },
+        isValid ? "Onboarding data is valid" : "Validation errors found"
+      )
     );
 });
 

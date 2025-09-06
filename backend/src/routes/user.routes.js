@@ -5,8 +5,9 @@ import {
   loginUser,
   logoutUser,
   getCurrentUser,
-  updateOnboardingStep,
   completeOnboarding,
+  getOnboardingStatus,
+  validateOnboardingData,
   updateProfile,
   uploadAvatar,
   updatePreferences,
@@ -30,9 +31,10 @@ router.route("/refresh-access-token").post(refreshAccessToken);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
 
-// Onboarding routes
-router.route("/onboarding/step").patch(verifyJWT, updateOnboardingStep);
-router.route("/onboarding/complete").patch(verifyJWT, completeOnboarding);
+// Onboarding routes (updated)
+router.route("/onboarding/status").get(verifyJWT, getOnboardingStatus);
+router.route("/onboarding/validate").post(verifyJWT, validateOnboardingData);
+router.route("/onboarding/complete").post(verifyJWT, completeOnboarding);
 
 // Profile management
 router.route("/profile").patch(verifyJWT, updateProfile);

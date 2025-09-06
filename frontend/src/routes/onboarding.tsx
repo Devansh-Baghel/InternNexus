@@ -1,6 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { GraduationCap, Heart, MapPin, Target, Sparkles, Brain, Rocket, Award } from "lucide-react";
-import { useState } from "react";
+import {
+  GraduationCap,
+  Heart,
+  MapPin,
+  Target,
+  Sparkles,
+  Brain,
+  Rocket,
+  Award,
+  Loader2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   ChevronRight,
   Users,
@@ -26,6 +36,8 @@ import {
   Languages,
   Smartphone,
 } from "lucide-react";
+import { apiService } from "@/utils/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
@@ -34,7 +46,9 @@ export const Route = createFileRoute("/onboarding")({
 // Onboarding Page Component
 const OnboardingPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     education: "",
     field: "",
@@ -44,6 +58,95 @@ const OnboardingPage = () => {
     experience: "",
   });
 
+  // Check if user is already onboarded
+  useEffect(() => {
+    if (user?.isOnboardingComplete) {
+      navigate({ to: "/dashboard" });
+    }
+  }, [user, navigate]);
+
+  // Load existing onboarding data if any
+  useEffect(() => {
+    const loadOnboardingStatus = async () => {
+      try {
+        const response = await apiService.getOnboardingStatus();
+        const { currentData } = response.data.onboarding;
+
+        setFormData({
+          education: currentData.education || "",
+          field: currentData.field || "",
+          skills: currentData.skills || [],
+          interests: currentData.interests || [],
+          location: currentData.location || "",
+          experience: currentData.experience || "",
+        });
+      } catch (error) {
+        console.error("Failed to load onboarding status:", error);
+      }
+    };
+
+    if (user && !user.isOnboardingComplete) {
+      loadOnboardingStatus();
+    }
+  }, [user]);
+
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.education.trim() !== "";
+      case 2:
+        return formData.skills.length > 0;
+      case 3:
+        return formData.interests.length > 0;
+      case 4:
+        return formData.location.trim() !== "" && formData.experience !== "";
+      default:
+        return false;
+    }
+  };
+
+  const handleNext = async () => {
+    if (!validateCurrentStep()) {
+      return;
+    }
+
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      // Complete onboarding
+      setIsLoading(true);
+      try {
+        const onboardingData = {
+          education: formData.education,
+          field: formData.field,
+          skills: formData.skills,
+          interests: formData.interests,
+          location: formData.location,
+          experience: formData.experience as
+            | "none"
+            | "some"
+            | "internship"
+            | "part-time",
+        };
+
+        await apiService.completeOnboarding(onboardingData);
+        navigate({ to: "/dashboard" });
+      } catch (error) {
+        console.error("Failed to complete onboarding:", error);
+        // Handle error - maybe show a toast or error message
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Redirect to onboarding if not completed
+  useEffect(() => {
+    if (user && !user.isOnboardingComplete) {
+      navigate({ to: "/onboarding" });
+    }
+  }, [user, navigate]);
+
   const steps = [
     {
       number: 1,
@@ -52,23 +155,23 @@ const OnboardingPage = () => {
       description: "Your academic background",
       color: "from-blue-500 to-indigo-500",
     },
-    { 
-      number: 2, 
-      title: "Skills", 
+    {
+      number: 2,
+      title: "Skills",
       icon: <Target className="w-4 h-4" />,
       description: "Your expertise areas",
       color: "from-green-500 to-emerald-500",
     },
-    { 
-      number: 3, 
-      title: "Interests", 
+    {
+      number: 3,
+      title: "Interests",
       icon: <Heart className="w-4 h-4" />,
       description: "Industries you love",
       color: "from-purple-500 to-violet-500",
     },
-    { 
-      number: 4, 
-      title: "Preferences", 
+    {
+      number: 4,
+      title: "Preferences",
       icon: <MapPin className="w-4 h-4" />,
       description: "Location & experience",
       color: "from-orange-500 to-pink-500",
@@ -76,44 +179,71 @@ const OnboardingPage = () => {
   ];
 
   const educationOptions = [
-    { 
-      value: "High School/12th Grade", 
-      icon: "🎓", 
-      description: "Secondary education completed" 
+    {
+      value: "High School/12th Grade",
+      icon: "🎓",
+      description: "Secondary education completed",
     },
-    { 
-      value: "Diploma", 
-      icon: "📜", 
-      description: "Technical or vocational training" 
+    {
+      value: "Diploma",
+      icon: "📜",
+      description: "Technical or vocational training",
     },
-    { 
-      value: "Bachelor's Degree", 
-      icon: "🎯", 
-      description: "Undergraduate studies" 
+    {
+      value: "Bachelor's Degree",
+      icon: "🎯",
+      description: "Undergraduate studies",
     },
-    { 
-      value: "Master's Degree", 
-      icon: "🚀", 
-      description: "Postgraduate education" 
+    {
+      value: "Master's Degree",
+      icon: "🚀",
+      description: "Postgraduate education",
     },
-    { 
-      value: "PhD", 
-      icon: "🔬", 
-      description: "Doctoral research" 
+    {
+      value: "PhD",
+      icon: "🔬",
+      description: "Doctoral research",
     },
   ];
 
   const skillOptions = [
-    "JavaScript", "Python", "Java", "React", "Node.js", "SQL",
-    "HTML/CSS", "Data Analysis", "Digital Marketing", "Content Writing",
-    "Graphic Design", "UI/UX Design", "Project Management", "Communication",
-    "Leadership", "Machine Learning", "Cloud Computing", "Mobile Development"
+    "JavaScript",
+    "Python",
+    "Java",
+    "React",
+    "Node.js",
+    "SQL",
+    "HTML/CSS",
+    "Data Analysis",
+    "Digital Marketing",
+    "Content Writing",
+    "Graphic Design",
+    "UI/UX Design",
+    "Project Management",
+    "Communication",
+    "Leadership",
+    "Machine Learning",
+    "Cloud Computing",
+    "Mobile Development",
   ];
 
   const interestOptions = [
-    "Technology", "Marketing", "Finance", "Healthcare", "Education",
-    "Media", "Startups", "Non-profit", "Government", "Research",
-    "Sales", "HR", "AI/ML", "Sustainability", "Gaming", "E-commerce"
+    "Technology",
+    "Marketing",
+    "Finance",
+    "Healthcare",
+    "Education",
+    "Media",
+    "Startups",
+    "Non-profit",
+    "Government",
+    "Research",
+    "Sales",
+    "HR",
+    "AI/ML",
+    "Sustainability",
+    "Gaming",
+    "E-commerce",
   ];
 
   const handleSkillToggle = (skill) => {
@@ -134,14 +264,6 @@ const OnboardingPage = () => {
     }));
   };
 
-  const handleNext = () => {
-    if (currentStep < 4) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      navigate({ to: "/dashboard" });
-    }
-  };
-
   const renderStep = () => {
     switch (currentStep) {
       case 1:
@@ -158,7 +280,8 @@ const OnboardingPage = () => {
                 </span>
               </h2>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Help us understand your academic journey to find the perfect opportunities
+                Help us understand your academic journey to find the perfect
+                opportunities
               </p>
             </div>
 
@@ -181,8 +304,12 @@ const OnboardingPage = () => {
                   <div className="flex items-center space-x-3">
                     <div className="text-2xl">{option.icon}</div>
                     <div className="flex-1">
-                      <div className="font-semibold text-sm">{option.value}</div>
-                      <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+                      <div className="font-semibold text-sm">
+                        {option.value}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {option.description}
+                      </div>
                     </div>
                     {formData.education === option.value && (
                       <CheckCircle className="w-5 h-5 text-blue-500" />
@@ -223,7 +350,8 @@ const OnboardingPage = () => {
                 </span>
               </h2>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Select the skills that best represent your capabilities and expertise
+                Select the skills that best represent your capabilities and
+                expertise
               </p>
             </div>
 
@@ -254,9 +382,12 @@ const OnboardingPage = () => {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-green-800 mb-1 text-sm">Pro Tip!</p>
+                  <p className="font-bold text-green-800 mb-1 text-sm">
+                    Pro Tip!
+                  </p>
                   <p className="text-xs text-green-700">
-                    Select 3-8 skills that best represent your abilities. Quality over quantity!
+                    Select 3-8 skills that best represent your abilities.
+                    Quality over quantity!
                   </p>
                 </div>
               </div>
@@ -309,9 +440,12 @@ const OnboardingPage = () => {
                   <Brain className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-purple-800 mb-1 text-sm">Smart Matching</p>
+                  <p className="font-bold text-purple-800 mb-1 text-sm">
+                    Smart Matching
+                  </p>
                   <p className="text-xs text-purple-700">
-                    Our AI will use these interests to find internships that align with your passions!
+                    Our AI will use these interests to find internships that
+                    align with your passions!
                   </p>
                 </div>
               </div>
@@ -365,10 +499,16 @@ const OnboardingPage = () => {
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 text-sm shadow-inner bg-white"
                 >
                   <option value="">Select your experience level</option>
-                  <option value="none">🌱 No prior experience (Fresh start!)</option>
+                  <option value="none">
+                    🌱 No prior experience (Fresh start!)
+                  </option>
                   <option value="some">💡 Some project/freelance work</option>
-                  <option value="internship">🎯 Previous internship experience</option>
-                  <option value="part-time">💼 Part-time work experience</option>
+                  <option value="internship">
+                    🎯 Previous internship experience
+                  </option>
+                  <option value="part-time">
+                    💼 Part-time work experience
+                  </option>
                 </select>
               </div>
             </div>
@@ -379,9 +519,12 @@ const OnboardingPage = () => {
                   <Rocket className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-bold text-orange-800 mb-1 text-sm">Almost Ready!</p>
+                  <p className="font-bold text-orange-800 mb-1 text-sm">
+                    Almost Ready!
+                  </p>
                   <p className="text-xs text-orange-700">
-                    You're one step away from discovering amazing internship opportunities tailored just for you!
+                    You're one step away from discovering amazing internship
+                    opportunities tailored just for you!
                   </p>
                 </div>
               </div>
@@ -426,7 +569,9 @@ const OnboardingPage = () => {
             <div className="flex items-center space-x-6">
               <div className="hidden md:flex items-center space-x-4 text-sm">
                 <Shield className="w-4 h-4 text-green-600" />
-                <span className="text-gray-600 font-medium">Secure & Private</span>
+                <span className="text-gray-600 font-medium">
+                  Secure & Private
+                </span>
               </div>
             </div>
           </div>
@@ -445,7 +590,8 @@ const OnboardingPage = () => {
               </span>
             </h1>
             <p className="text-sm text-gray-600 max-w-xl mx-auto leading-relaxed">
-              Help our AI understand you better to find the most suitable internship opportunities
+              Help our AI understand you better to find the most suitable
+              internship opportunities
             </p>
           </div>
 
@@ -453,17 +599,20 @@ const OnboardingPage = () => {
           <div className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-gray-200 mb-8">
             <div className="flex justify-between items-center mb-4">
               {steps.map((step, index) => (
-                <div key={step.number} className="flex flex-col items-center relative">
+                <div
+                  key={step.number}
+                  className="flex flex-col items-center relative"
+                >
                   {index < steps.length - 1 && (
                     <div className="absolute top-5 left-6 w-12 md:w-16 h-0.5 bg-gray-200 -z-10">
-                      <div 
+                      <div
                         className={`h-0.5 bg-gradient-to-r from-orange-500 to-pink-500 transition-all duration-500 ${
-                          currentStep > step.number ? 'w-full' : 'w-0'
+                          currentStep > step.number ? "w-full" : "w-0"
                         }`}
                       ></div>
                     </div>
                   )}
-                  
+
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 shadow-md ${
                       currentStep >= step.number
@@ -477,11 +626,15 @@ const OnboardingPage = () => {
                       step.icon
                     )}
                   </div>
-                  
+
                   <div className="mt-2 text-center">
-                    <div className={`text-xs font-bold ${
-                      currentStep >= step.number ? 'text-gray-900' : 'text-gray-400'
-                    }`}>
+                    <div
+                      className={`text-xs font-bold ${
+                        currentStep >= step.number
+                          ? "text-gray-900"
+                          : "text-gray-400"
+                      }`}
+                    >
                       {step.title}
                     </div>
                     <div className="text-xs text-gray-500 hidden md:block">
@@ -491,7 +644,7 @@ const OnboardingPage = () => {
                 </div>
               ))}
             </div>
-            
+
             <div className="relative">
               <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                 <div
@@ -537,9 +690,15 @@ const OnboardingPage = () => {
 
           <button
             onClick={handleNext}
-            className="group px-6 py-3 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 flex items-center"
+            disabled={!validateCurrentStep() || isLoading}
+            className="group px-6 py-3 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 flex items-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {currentStep === 4 ? (
+            {isLoading ? (
+              <>
+                <Loader2 className="ml-2 w-4 h-4 animate-spin" />
+                {currentStep === 4 ? "Completing..." : "Processing..."}
+              </>
+            ) : currentStep === 4 ? (
               <>
                 Complete Setup
                 <Rocket className="ml-2 w-4 h-4 group-hover:animate-pulse" />
@@ -565,7 +724,9 @@ const OnboardingPage = () => {
           </div>
           <div className="bg-white/50 backdrop-blur-sm p-3 rounded-xl">
             <Languages className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-            <div className="text-xs font-bold text-gray-700">Multi-Language</div>
+            <div className="text-xs font-bold text-gray-700">
+              Multi-Language
+            </div>
           </div>
           <div className="bg-white/50 backdrop-blur-sm p-3 rounded-xl">
             <Award className="w-5 h-5 text-orange-600 mx-auto mb-1" />

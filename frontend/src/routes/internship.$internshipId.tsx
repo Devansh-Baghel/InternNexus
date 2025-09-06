@@ -126,7 +126,7 @@ export const InternshipCard = ({ internship, onClick }) => {
               {internship.rating} ({internship.applicants} applicants)
             </div>
             <div className="flex items-center text-green-600 font-bold">
-              <DollarSign className="w-3 h-3 mr-1" />
+              {/* <DollarSign className="w-3 h-3 mr-1" /> */}
               {internship.stipend}
             </div>
           </div>
@@ -356,7 +356,7 @@ const InternshipDetails = () => {
                         {internship.duration}
                       </span>
                       <span className="flex items-center text-green-600 font-bold">
-                        <DollarSign className="w-3 h-3 mr-1" />
+                        {/* <DollarSign className="w-3 h-3 mr-1" /> */}
                         {internship.stipend}
                       </span>
                       <span className="flex items-center text-yellow-600">
