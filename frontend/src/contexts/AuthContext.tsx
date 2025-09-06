@@ -27,6 +27,33 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper function to clear specific auth-related cookies
+const clearAuthCookies = () => {
+  const authCookieNames = [
+    'accessToken',
+    'refreshToken',
+    'auth-token',
+    'session',
+    'jwt',
+    'token',
+    // Add any other cookie names your backend uses
+  ];
+
+  authCookieNames.forEach((cookieName) => {
+    // Clear for current path
+    document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+
+    // Clear for root domain
+    const domain = window.location.hostname.split('.').slice(-2).join('.');
+    if (domain !== window.location.hostname) {
+      document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${domain}`;
+    }
+
+    // Clear for current domain
+    document.cookie = `${cookieName}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+  });
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +72,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Token might be expired, clear it
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        clearAuthCookies(); // Also clear cookies when token is expired
       } finally {
         setIsLoading(false);
       }
@@ -57,14 +85,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await apiService.login({ email, password });
       const { user: userData, accessToken, refreshToken } = response.data;
-      
+
       // Store tokens
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
-      
+
       setUser(userData);
     } catch (error: any) {
       setError(error.message || 'Login failed');
@@ -78,7 +106,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await apiService.register({ fullName, email, password });
       // Registration successful, but user needs to login
       setError(null);
@@ -96,9 +124,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error('Logout API call failed:', error);
     } finally {
-      // Clear local state regardless of API call success
+      // Clear local storage
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+
+      // Clear all auth-related cookies
+      clearAuthCookies();
+
+      // Clear user state
       setUser(null);
     }
   };

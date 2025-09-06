@@ -1,6 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+
 import {
   ChevronRight,
   Users,
@@ -58,6 +60,7 @@ const mockUser = {
 const ProfilePage = () => {
   const user = mockUser;
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -572,11 +575,25 @@ const ProfilePage = () => {
             <div className="bg-white/70 backdrop-blur-xl p-5 rounded-2xl shadow-xl border border-red-200">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Danger Zone</h3>
               <div className="space-y-2">
-                <button className="w-full flex items-center justify-center px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold hover:bg-red-100 transition-all duration-300 text-sm">
+                <button 
+                  onClick={async () => {
+                    try {
+                      await logout();
+                      navigate({ to: "/login" });
+                    } catch (error) {
+                      // logout() shouldn't throw since it catches errors,
+                      // but good practice for robustness
+                      console.error('Logout failed:', error);
+                      navigate({ to: "/login" }); // still redirect
+                    }
+                  }}
+                className="w-full flex items-center justify-center px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold hover:bg-red-100 transition-all duration-300 text-sm">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </button>
-                <button className="w-full flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 border border-red-300 rounded-xl font-bold hover:bg-red-200 transition-all duration-300 text-sm">
+                <button
+                  
+                className="w-full flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 border border-red-300 rounded-xl font-bold hover:bg-red-200 transition-all duration-300 text-sm">
                   Delete Account
                 </button>
               </div>
